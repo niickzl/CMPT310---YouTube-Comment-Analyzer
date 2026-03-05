@@ -55,6 +55,13 @@ class AnalyzeRequest(BaseModel):
     url: str
     max_results: int = 100
 
+      
+class CommentItem(BaseModel):
+    author: str
+    text: str
+    cleaned_text: str
+    likes: int
+    published_at: str
 
 class CommentResult(BaseModel):
     author: str
@@ -118,9 +125,6 @@ def analyze(req: AnalyzeRequest):
         raise HTTPException(status_code=403, detail=str(e))
     except QuotaExceededError as e:
         raise HTTPException(status_code=429, detail=str(e))
-    except Exception as e:
-        logger.exception("Unexpected error fetching comments")
-        raise HTTPException(status_code=500, detail=str(e))
 
     # 3. Preprocess — strip URLs, emojis, excess whitespace
     raw_texts = [c["text"] for c in raw_comments]
