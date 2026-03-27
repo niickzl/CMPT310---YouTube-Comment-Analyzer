@@ -21,9 +21,9 @@
 
   <div class="divider"></div>
 
+  <!-- Sentiment Overview -->
   <div class="dashboard-section">
     <div class="section-label">Sentiment Overview</div>
-
     <div class="sentiment-row">
       <div class="sentiment-card positive">
         <div class="s-icon">↑</div>
@@ -36,7 +36,6 @@
         <div class="s-label">Negative</div>
       </div>
     </div>
-
     <div class="sentiment-bar-wrap">
       <div class="bar-track">
         <div class="bar-fill" id="sentimentBar"></div>
@@ -46,6 +45,50 @@
 
   <div class="divider"></div>
 
+  <!-- Thematic Clusters -->
+  <div class="cluster-section">
+    <div class="section-label">Thematic Clusters</div>
+    <div class="clusters">
+
+      <div class="cluster-item">
+        <div class="cluster-left">
+          <div class="cluster-dot" style="background:#7c6af7;"></div>
+          <div class="cluster-name">Content</div>
+        </div>
+        <div class="cluster-bar-track">
+          <div class="cluster-bar-fill" id="bar-content" style="background:#7c6af7;"></div>
+        </div>
+        <div class="cluster-pct" id="pct-content">—</div>
+      </div>
+
+      <div class="cluster-item">
+        <div class="cluster-left">
+          <div class="cluster-dot" style="background:#ffd740;"></div>
+          <div class="cluster-name">Technical</div>
+        </div>
+        <div class="cluster-bar-track">
+          <div class="cluster-bar-fill" id="bar-technical" style="background:#ffd740;"></div>
+        </div>
+        <div class="cluster-pct" id="pct-technical">—</div>
+      </div>
+
+      <div class="cluster-item">
+        <div class="cluster-left">
+          <div class="cluster-dot" style="background:#40c4ff;"></div>
+          <div class="cluster-name">General</div>
+        </div>
+        <div class="cluster-bar-track">
+          <div class="cluster-bar-fill" id="bar-general" style="background:#40c4ff;"></div>
+        </div>
+        <div class="cluster-pct" id="pct-general">—</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Scanned Comments -->
   <div class="comments-section">
     <div class="comments-header">
       <div class="section-label">Scanned Comments</div>
@@ -54,7 +97,7 @@
     <div class="comments-list" id="commentsList">
       <div class="comments-empty">Comments will appear after analysis.</div>
     </div>
-    <div class="pagination" id="pagination">
+    <div class="pagination">
       <button class="page-btn" id="prevBtn" disabled>&#8592;</button>
       <div class="page-dots" id="pageDots"></div>
       <button class="page-btn" id="nextBtn" disabled>&#8594;</button>

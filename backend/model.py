@@ -1,225 +1,166 @@
-"""Baseline sentiment model for YouTube comment analysis.
+"""Twitter RoBERTa sentiment model for YouTube comment analysis.
 
-Uses a Logistic Regression classifier with TF-IDF vectorization as the
-Milestone 1 baseline. The model is trained on a small set of labeled
-seed phrases and can be swapped out for DistilBERT in Milestone 2.
+Swapped from distilbert-base-uncased-finetuned-sst-2-english (trained on
+movie reviews) to cardiffnlp/twitter-roberta-base-sentiment-latest (trained
+on tweets) — much closer to YouTube comment style: short, informal, slangy,
+and emoji-heavy.
+
+Returns three labels: positive, neutral, negative.
+Neutral comments are bucketed as negative for the binary dashboard display
+but stored separately so future UI iterations can show them distinctly.
 
 Pipeline:
-    cleaned text → TF-IDF vectorizer → Logistic Regression → label + confidence
+    cleaned text (with emojis) → RoBERTa tokenizer → transformer
+    → sarcasm check → flipped label if sarcastic → SentimentResult
 """
 
 import logging
-import os
-import pickle
 from dataclasses import dataclass
 
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
+from transformers import pipeline as hf_pipeline
 
 logger = logging.getLogger(__name__)
 
-# ── Seed training data ─────────────────────────────────────────────────────────
-# A small but balanced set of labeled phrases to bootstrap the model.
-# Replace or augment this with a real labeled dataset (e.g. SST-2, IMDB)
-# for better accuracy.
-
-_SEED_TEXTS = [
-    # Positive
-    "this video is amazing and very helpful",
-    "great content keep it up",
-    "loved this so much thank you",
-    "best video on this topic hands down",
-    "really well explained and clear",
-    "this is exactly what I was looking for",
-    "incredible work you are very talented",
-    "watched the whole thing could not stop",
-    "this changed my perspective thank you",
-    "super informative and entertaining",
-    "one of the best channels on youtube",
-    "you deserve way more subscribers",
-    "this video helped me so much",
-    "absolutely fantastic production quality",
-    "I learn something new every time",
-    "please make more videos like this",
-    "this is gold pure gold",
-    "finally someone explained it properly",
-    "outstanding video highly recommend",
-    "your editing is top notch",
-    # Negative
-    "this video is a waste of time",
-    "terrible explanation totally confused now",
-    "worst video I have ever seen",
-    "disliked and unsubscribed immediately",
-    "this is completely wrong and misleading",
-    "so boring I fell asleep",
-    "the audio quality is awful",
-    "clickbait title does not match content",
-    "you clearly do not know what you are talking about",
-    "this made no sense at all",
-    "very disappointing expected much better",
-    "stop making videos you are bad at this",
-    "full of mistakes and misinformation",
-    "unwatchable garbage content",
-    "nobody asked for this video",
-    "this channel is going downhill fast",
-    "total waste of my time",
-    "the worst explanation I have heard",
-    "annoying voice and bad editing",
-    "nothing useful here move on",
-    # Neutral / Mixed (labeled negative to keep binary simple)
-    "it was okay nothing special",
-    "not sure how I feel about this",
-    "some parts were good others not so much",
-]
-
-_SEED_LABELS = (
-    [1] * 20  # positive
-    + [0] * 20  # negative
-    + [0] * 3   # neutral → negative bucket for binary model
-)
-
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "sentiment_model.pkl")
+_classifier = None
+_sarcasm_classifier = None
 
 
-# ── Model training ─────────────────────────────────────────────────────────────
+# ── Model loaders ──────────────────────────────────────────────────────────────
 
-def _build_pipeline() -> Pipeline:
-    """Build and return a TF-IDF + Logistic Regression pipeline."""
-    return Pipeline([
-        ("tfidf", TfidfVectorizer(
-            ngram_range=(1, 2),   # unigrams + bigrams
-            max_features=10_000,
-            sublinear_tf=True,    # log normalization
-            strip_accents="unicode",
-            analyzer="word",
-            min_df=1,
-        )),
-        ("clf", LogisticRegression(
-            max_iter=1000,
-            C=1.0,
-            solver="lbfgs",
-            class_weight="balanced",
-        )),
-    ])
+def get_or_load():
+    """Return the RoBERTa classifier, loading it on first call.
 
-
-def train(texts: list[str], labels: list[int]) -> Pipeline:
-    """Train and return a sentiment pipeline.
-
-    Args:
-        texts:  List of cleaned comment strings.
-        labels: List of int labels (1 = positive, 0 = negative).
-
-    Returns:
-        A fitted sklearn Pipeline.
+    Downloads from HuggingFace on first run, then caches locally in
+    ~/.cache/huggingface/. Subsequent startups load from cache instantly.
     """
-    pipeline = _build_pipeline()
-    pipeline.fit(texts, labels)
-    logger.info("Model trained on %d samples.", len(texts))
-    return pipeline
+    global _classifier
+    if _classifier is None:
+        logger.info("Loading Twitter RoBERTa sentiment model...")
+        _classifier = hf_pipeline(
+            "text-classification",
+            model="cardiffnlp/twitter-roberta-base-sentiment-latest",
+            truncation=True,
+            max_length=512,
+        )
+        logger.info("RoBERTa sentiment model loaded.")
+    return _classifier
 
 
-def save(pipeline: Pipeline, path: str = MODEL_PATH) -> None:
-    """Persist a trained pipeline to disk."""
-    with open(path, "wb") as f:
-        pickle.dump(pipeline, f)
-    logger.info("Model saved to %s", path)
+def get_sarcasm_classifier():
+    """Return the sarcasm detector, loading it on first call."""
+    global _sarcasm_classifier
+    if _sarcasm_classifier is None:
+        logger.info("Loading sarcasm classifier...")
+        _sarcasm_classifier = hf_pipeline(
+            "text-classification",
+            model="helinivan/english-sarcasm-detector",
+            truncation=True,
+            max_length=512,
+        )
+        logger.info("Sarcasm classifier loaded.")
+    return _sarcasm_classifier
 
 
-def load(path: str = MODEL_PATH) -> Pipeline:
-    """Load a persisted pipeline from disk."""
-    with open(path, "rb") as f:
-        pipeline = pickle.load(f)
-    logger.info("Model loaded from %s", path)
-    return pipeline
-
-
-def get_or_train() -> Pipeline:
-    """Return a ready-to-use pipeline, training from seed data if needed.
-
-    Loads from disk if a saved model exists; otherwise trains on seed
-    data and saves it for subsequent calls.
-    """
-    if os.path.exists(MODEL_PATH):
-        return load()
-
-    logger.info("No saved model found — training on seed data.")
-    pipeline = train(_SEED_TEXTS, _SEED_LABELS)
-    save(pipeline)
-    return pipeline
-
-
-# ── Inference ──────────────────────────────────────────────────────────────────
+# ── Data class ─────────────────────────────────────────────────────────────────
 
 @dataclass
 class SentimentResult:
     label: str          # "positive" | "negative"
+    raw_label: str      # "positive" | "neutral" | "negative" (original RoBERTa output)
     score: float        # confidence 0.0 – 1.0
     is_positive: bool
+    is_sarcastic: bool  # True if sarcasm detector fired
 
 
-def predict(texts: list[str], pipeline: Pipeline | None = None) -> list[SentimentResult]:
-    """Run sentiment inference on a list of cleaned comment texts.
+# ── Inference ──────────────────────────────────────────────────────────────────
+
+def predict(texts: list[str], classifier=None) -> list[SentimentResult]:
+    """Run RoBERTa sentiment inference with sarcasm correction.
+
+    Sarcasm detection:
+        - Runs a second model (helinivan/english-sarcasm-detector) in parallel
+        - If a comment is flagged as SARCASM with confidence >= 0.80,
+          the sentiment label is flipped
+        - Threshold is set high (0.80) to avoid over-correcting
+
+    Neutral handling:
+        - RoBERTa returns positive / neutral / negative
+        - Neutral is bucketed as negative for the binary dashboard
+        - raw_label preserves the original three-way classification
 
     Args:
-        texts:    List of preprocessed comment strings.
-        pipeline: Optional pre-loaded pipeline. Loads automatically if None.
+        texts:      List of sentiment-cleaned comment strings (emojis kept).
+        classifier: Optional pre-loaded pipeline. Auto-loads if None.
 
     Returns:
-        A list of SentimentResult, one per input text, in the same order.
+        A list of SentimentResult, one per input, in the same order.
     """
     if not texts:
         return []
 
-    if pipeline is None:
-        pipeline = get_or_train()
+    if classifier is None:
+        classifier = get_or_load()
 
-    proba = pipeline.predict_proba(texts)  # shape: (n, 2)
+    sarcasm_clf = get_sarcasm_classifier()
+
+    sentiment_raw = classifier(texts, batch_size=16, truncation=True)
+    sarcasm_raw   = sarcasm_clf(texts, batch_size=16, truncation=True)
+
     results = []
-    for row in proba:
-        neg_conf, pos_conf = row[0], row[1]
-        is_positive = pos_conf >= 0.5
+    for s, sar in zip(sentiment_raw, sarcasm_raw):
+        # RoBERTa returns "positive", "neutral", "negative" (lowercase)
+        raw_label    = s["label"].lower()
+        is_positive  = raw_label == "positive"
+        is_sarcastic = sar["label"] == "SARCASM" and sar["score"] >= 0.80
+
+        # Flip sentiment if high-confidence sarcasm detected
+        if is_sarcastic:
+            is_positive = not is_positive
+
         results.append(SentimentResult(
             label="positive" if is_positive else "negative",
-            score=float(pos_conf if is_positive else neg_conf),
+            raw_label=raw_label,
+            score=round(float(s["score"]), 3),
             is_positive=is_positive,
+            is_sarcastic=is_sarcastic,
         ))
 
     return results
 
 
+# ── Aggregation ────────────────────────────────────────────────────────────────
+
 def summarize(results: list[SentimentResult]) -> dict:
-    """Aggregate a list of SentimentResults into dashboard-ready stats.
+    """Aggregate SentimentResults into dashboard-ready stats.
 
     Returns:
         {
             "positive_count": int,
             "negative_count": int,
-            "positive_pct": float,   # 0–100
-            "negative_pct": float,   # 0–100
-            "avg_confidence": float, # 0–1
+            "positive_pct":   float,   # 0–100
+            "negative_pct":   float,   # 0–100
+            "avg_confidence": float,   # 0–1
         }
     """
     if not results:
         return {
             "positive_count": 0,
             "negative_count": 0,
-            "positive_pct": 0.0,
-            "negative_pct": 0.0,
+            "positive_pct":   0.0,
+            "negative_pct":   0.0,
             "avg_confidence": 0.0,
         }
 
-    total = len(results)
-    pos = sum(1 for r in results if r.is_positive)
-    neg = total - pos
+    total    = len(results)
+    pos      = sum(1 for r in results if r.is_positive)
+    neg      = total - pos
     avg_conf = float(np.mean([r.score for r in results]))
 
     return {
         "positive_count": pos,
         "negative_count": neg,
-        "positive_pct": round(pos / total * 100, 1),
-        "negative_pct": round(neg / total * 100, 1),
+        "positive_pct":   round(pos / total * 100, 1),
+        "negative_pct":   round(neg / total * 100, 1),
         "avg_confidence": round(avg_conf, 3),
     }

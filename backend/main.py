@@ -1,8 +1,8 @@
-"""FastAPI backend for YT Comment Analyzer.
+"""FastAPI backend for YT Comment Analyzer — Milestone 2.
 
 Exposes:
     GET  /health   — liveness check
-    POST /analyze  — fetch, preprocess, and sentiment-score YouTube comments
+    POST /analyze  — fetch, preprocess, sentiment-score, and cluster comments
 """
 
 import logging
@@ -13,8 +13,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from model import SentimentResult, get_or_train, predict, summarize
-from preprocess import clean_batch
+from cluster import ClusterResult, ClusterSummary, cluster_comments
+from model import SentimentResult, get_or_load, get_sarcasm_classifier, predict, summarize
+from preprocess import sentiment_batch, clustering_batch
 from youtube import (
     CommentsDisabledError,
     QuotaExceededError,
@@ -37,40 +38,36 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
-# Pre-load model once at startup so the first request isn't slow
-_pipeline = None
+_classifier = None
 
 
 @app.on_event("startup")
 def load_model():
-    global _pipeline
-    logger.info("Loading sentiment model...")
-    _pipeline = get_or_train()
-    logger.info("Sentiment model ready.")
+    global _classifier
+    logger.info("Loading models...")
+    _classifier = get_or_load()       # Twitter RoBERTa
+    get_sarcasm_classifier()          # sarcasm detector — pre-warmed
+    logger.info("All models ready.")
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────────
 
 class AnalyzeRequest(BaseModel):
     url: str
-    max_results: int = 100
+    max_results: int = 250
 
-      
-class CommentItem(BaseModel):
-    author: str
-    text: str
-    cleaned_text: str
-    likes: int
-    published_at: str
 
 class CommentResult(BaseModel):
     author: str
-    text: str            # original raw text shown in UI
-    cleaned_text: str    # preprocessed text fed to model
+    text: str               # original raw text shown in UI
+    cleaned_text: str       # sentiment-cleaned text (emojis kept)
     likes: int
     published_at: str
-    sentiment: str       # "positive" | "negative"
-    confidence: float    # 0.0 – 1.0
+    sentiment: str          # "positive" | "negative"
+    raw_sentiment: str      # "positive" | "neutral" | "negative"
+    confidence: float       # 0.0 – 1.0
+    is_sarcastic: bool
+    category: str           # "Content" | "Technical" | "General"
 
 
 class SentimentSummary(BaseModel):
@@ -81,10 +78,21 @@ class SentimentSummary(BaseModel):
     avg_confidence: float
 
 
+class ClusterSummarySchema(BaseModel):
+    content_count: int
+    technical_count: int
+    general_count: int
+    content_pct: float
+    technical_pct: float
+    general_pct: float
+    top_keywords: dict[str, list[str]]
+
+
 class AnalyzeResponse(BaseModel):
     video_id: str
     comment_count: int
     sentiment_summary: SentimentSummary
+    cluster_summary: ClusterSummarySchema
     comments: list[CommentResult]
 
 
@@ -97,7 +105,7 @@ def health():
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest):
-    """Fetch, preprocess, and sentiment-score comments for a YouTube video."""
+    """Fetch, preprocess, sentiment-score, and cluster YouTube comments."""
 
     api_key = os.getenv("YOUTUBE_API_KEY")
     if not api_key:
@@ -106,7 +114,7 @@ def analyze(req: AnalyzeRequest):
             detail="YOUTUBE_API_KEY is not set in the environment.",
         )
 
-    # 1. Extract video ID from URL
+    # 1. Extract video ID — supports /watch and /shorts URLs
     try:
         video_id = extract_video_id(req.url)
     except ValueError as e:
@@ -125,39 +133,70 @@ def analyze(req: AnalyzeRequest):
         raise HTTPException(status_code=403, detail=str(e))
     except QuotaExceededError as e:
         raise HTTPException(status_code=429, detail=str(e))
+    except Exception as e:
+        logger.exception("Unexpected error fetching comments")
+        raise HTTPException(status_code=500, detail=str(e))
 
-    # 3. Preprocess — strip URLs, emojis, excess whitespace
     raw_texts = [c["text"] for c in raw_comments]
-    cleaned_texts = clean_batch(raw_texts)
 
-    # 4. Run baseline sentiment model
-    sentiment_results: list[SentimentResult] = predict(cleaned_texts, _pipeline)
+    # 3a. Sentiment path — keeps emojis, RoBERTa reads them as signal
+    sentiment_texts = sentiment_batch(raw_texts)
 
-    # 5. Assemble per-comment results
+    # 3b. Clustering path — strips emojis, cleaner for TF-IDF / K-Means
+    cluster_texts = clustering_batch(raw_texts)
+
+    # 4. RoBERTa sentiment inference + sarcasm correction
+    sentiment_results: list[SentimentResult] = predict(sentiment_texts, _classifier)
+
+    # 5. K-Means thematic clustering (SpaCy lemmatization happens inside)
+    cluster_results: list[ClusterResult]
+    cluster_summary: ClusterSummary
+    cluster_results, cluster_summary = cluster_comments(cluster_texts)
+
+    # 6. Assemble per-comment results
     comments = [
         CommentResult(
             author=raw["author"],
             text=raw["text"],
-            cleaned_text=cleaned,
+            cleaned_text=s_text,
             likes=raw["likes"],
             published_at=raw["published_at"],
-            sentiment=result.label,
-            confidence=result.score,
+            sentiment=sentiment.label,
+            raw_sentiment=sentiment.raw_label,
+            confidence=sentiment.score,
+            is_sarcastic=sentiment.is_sarcastic,
+            category=cluster.category,
         )
-        for raw, cleaned, result in zip(raw_comments, cleaned_texts, sentiment_results)
+        for raw, s_text, sentiment, cluster in zip(
+            raw_comments, sentiment_texts, sentiment_results, cluster_results
+        )
     ]
 
-    # 6. Aggregate sentiment summary for the dashboard
-    summary = SentimentSummary(**summarize(sentiment_results))
+    # 7. Aggregate summaries
+    sentiment_summary = SentimentSummary(**summarize(sentiment_results))
+    cluster_summary_schema = ClusterSummarySchema(
+        content_count=cluster_summary.content_count,
+        technical_count=cluster_summary.technical_count,
+        general_count=cluster_summary.general_count,
+        content_pct=cluster_summary.content_pct,
+        technical_pct=cluster_summary.technical_pct,
+        general_pct=cluster_summary.general_pct,
+        top_keywords=cluster_summary.top_keywords,
+    )
 
     logger.info(
-        "video=%s comments=%d positive=%.1f%% negative=%.1f%%",
-        video_id, len(comments), summary.positive_pct, summary.negative_pct,
+        "video=%s comments=%d pos=%.1f%% neg=%.1f%% "
+        "content=%d technical=%d general=%d",
+        video_id, len(comments),
+        sentiment_summary.positive_pct, sentiment_summary.negative_pct,
+        cluster_summary.content_count, cluster_summary.technical_count,
+        cluster_summary.general_count,
     )
 
     return AnalyzeResponse(
         video_id=video_id,
         comment_count=len(comments),
-        sentiment_summary=summary,
+        sentiment_summary=sentiment_summary,
+        cluster_summary=cluster_summary_schema,
         comments=comments,
     )

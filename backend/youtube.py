@@ -77,7 +77,7 @@ def extract_video_id(url: str) -> str:
 def fetch_comments(
     video_id: str,
     api_key: str,
-    max_results: int = 100,
+    max_results: int = 250,
 ) -> list[dict]:
     """Fetch top-level comments for a YouTube video.
 
