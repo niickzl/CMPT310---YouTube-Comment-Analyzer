@@ -31,8 +31,8 @@ Then run
 
 ```.venv/Scripts/activate``` (Windows)
 
-```source .venv/bin/active``` (Mac/Linux)
+```source .venv/bin/activate``` (Mac/Linux)
 
-Then run ```pip install fastapi uvicorn spacy scikit-learn torch transformers```
+Then run ```pip install requirement.txt```
 
 Then run ```python -m spacy download en_core_web_sm```
