@@ -7,18 +7,16 @@
     "http://localhost:8000/*"
   ],
   "icons": {
-      "1000": "icons/YTCA.png"
+    "16": "icons/YTCA.png",
+    "48": "icons/YTCA.png",
+    "128": "icons/YTCA.png"
   },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "1000": "icons/YTCA.png"
+      "16": "icons/YTCA.png",
+      "48": "icons/YTCA.png",
+      "128": "icons/YTCA.png"
     }
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://www.youtube.com/watch?v=*"],
-      "js": ["content.js"]
-    }
-  ]
+  }
 }
