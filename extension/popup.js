@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('Analysis result:', data);
 
       renderSentiment(data.sentiment_summary);
+      renderKeywords(data.keywords || []);
 
       allComments = data.comments;
       currentPage = 0;
@@ -103,6 +104,24 @@ function renderSentiment(summary) {
   });
 }
 
+// Keyword "tags"
+function renderKeywords(keywords) {
+  const list = document.getElementById('keywordsList');
+  list.innerHTML = '';
+
+  if (keywords.length === 0) {
+    list.innerHTML = '<div class="comments-empty">No keywords found.</div>';
+    return;
+  }
+
+  keywords.forEach((kw) => {
+    const tag = document.createElement('span');
+    tag.className = 'keyword-tag';
+    tag.innerHTML = `${kw.word} <span class="keyword-count">${kw.count}</span>`;
+    list.appendChild(tag);
+  });
+}
+
 // ── Render a page of comments ─────────────────────────────────────────────────
 function renderPage(page) {
   const list     = document.getElementById('commentsList');
@@ -126,7 +145,7 @@ function renderPage(page) {
 
       const badge = document.createElement('span');
       badge.className = `sentiment-badge ${comment.sentiment}`;
-      badge.textContent = comment.sentiment;
+      badge.textContent = `${comment.sentiment} ${Math.round(comment.confidence * 100)}%`;
 
       const text = document.createElement('span');
       text.className = 'comment-text';

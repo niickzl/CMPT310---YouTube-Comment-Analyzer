@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from model import SentimentResult, get_or_train, predict, summarize
+from keywords import extract_keywords
 from preprocess import clean_batch
 from youtube import (
     CommentsDisabledError,
@@ -81,10 +82,16 @@ class SentimentSummary(BaseModel):
     avg_confidence: float
 
 
+class KeywordItem(BaseModel):
+    word: str
+    count: int
+
+
 class AnalyzeResponse(BaseModel):
     video_id: str
     comment_count: int
     sentiment_summary: SentimentSummary
+    keywords: list[KeywordItem]
     comments: list[CommentResult]
 
 
@@ -150,6 +157,9 @@ def analyze(req: AnalyzeRequest):
     # 6. Aggregate sentiment summary for the dashboard
     summary = SentimentSummary(**summarize(sentiment_results))
 
+    # 7.Get keywords
+    top_keywords = extract_keywords(cleaned_texts, top_n=5)
+
     logger.info(
         "video=%s comments=%d positive=%.1f%% negative=%.1f%%",
         video_id, len(comments), summary.positive_pct, summary.negative_pct,
@@ -159,5 +169,6 @@ def analyze(req: AnalyzeRequest):
         video_id=video_id,
         comment_count=len(comments),
         sentiment_summary=summary,
+        keywords=[KeywordItem(word=w, count=c) for w, c in top_keywords],
         comments=comments,
     )
