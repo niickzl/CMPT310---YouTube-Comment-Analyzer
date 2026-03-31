@@ -1,14 +1,13 @@
 """Sentiment model for YouTube comment analysis.
 
-Uses cardiffnlp/twitter-roberta-large-sentiment-latest (RoBERTa large,
-trained on tweets) — strong domain match for YouTube comments which are
-short, informal, emoji-heavy, and slangy.
+Uses cardiffnlp/twitter-roberta-base-sentiment-latest (trained on tweets)
+— strong domain match for YouTube comments: short, informal, emoji-heavy.
 
 Sarcasm correction via helinivan/english-sarcasm-detector flips the label
 when high-confidence sarcasm (>= 0.80) is detected.
 
 Pipeline:
-    cleaned text (emojis kept) → RoBERTa large tokenizer → transformer
+    cleaned text → RoBERTa tokenizer → transformer
     → sarcasm check → flipped label if sarcastic → SentimentResult
 """
 
@@ -27,17 +26,17 @@ _sarcasm_classifier = None
 # ── Model loaders ──────────────────────────────────────────────────────────────
 
 def get_or_load():
-    """Return the RoBERTa large classifier, loading it on first call."""
+    """Return the RoBERTa classifier, loading it on first call."""
     global _classifier
     if _classifier is None:
-        logger.info("Loading twitter-roberta-large sentiment model...")
+        logger.info("Loading twitter-roberta-base sentiment model...")
         _classifier = hf_pipeline(
             "text-classification",
             model="cardiffnlp/twitter-roberta-base-sentiment-latest",
             truncation=True,
             max_length=512,
         )
-        logger.info("RoBERTa large sentiment model loaded.")
+        logger.info("RoBERTa base sentiment model loaded.")
     return _classifier
 
 
