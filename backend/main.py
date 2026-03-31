@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from model import SentimentResult, get_or_load, get_sarcasm_classifier, predict, summarize
 from cluster import ClusterResult, ClusterSummary, cluster_comments
 from keywords import extract_keywords
-from preprocess import clean_batch
+from preprocess import sentiment_batch, clustering_batch
 from youtube import (
     CommentsDisabledError,
     QuotaExceededError,
@@ -148,10 +148,10 @@ def analyze(req: AnalyzeRequest):
     except QuotaExceededError as e:
         raise HTTPException(status_code=429, detail=str(e))
 
-    # 3. Preprocess — keeps emojis so RoBERTa reads them as sentiment signal
-    raw_texts = [c["text"] for c in raw_comments]
-    sentiment_texts = clean_batch(raw_texts)
-    cleaned_texts   = clean_batch(raw_texts)
+    # 3. Two preprocessing paths — sentiment keeps emojis/casing, clustering strips them
+    raw_texts       = [c["text"] for c in raw_comments]
+    sentiment_texts = sentiment_batch(raw_texts)   # emojis kept, slang normalized
+    cleaned_texts   = clustering_batch(raw_texts)  # emojis stripped, slang normalized
 
     # 4. Run RoBERTa-large sentiment inference + sarcasm correction
     sentiment_results: list[SentimentResult] = predict(sentiment_texts)
