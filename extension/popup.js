@@ -14,6 +14,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const urlConfirm = document.getElementById('urlConfirm');
 
 
+  // ── Restore session if popup was closed ───────────────────
+  chrome.storage.session.get(['lastResult', 'currentUrl', 'currentPage'], (saved) => {
+    if (saved.lastResult) {
+      lastResult   = saved.lastResult;
+      currentUrl   = saved.currentUrl || currentUrl;
+      currentPage  = saved.currentPage || 0;
+      allComments  = lastResult.comments || [];
+
+      const titleEl = document.getElementById('videoTitle');
+      titleEl.textContent = lastResult.video_title || currentUrl || 'Restored session';
+      titleEl.className = 'video-title';
+
+      renderSentiment(lastResult.sentiment_summary);
+      renderKeywords(lastResult.keywords || []);
+      renderElbow(lastResult.cluster_summary);
+      renderPage(currentPage);
+    }
+  });
+
   // ── Tab switching ──────────────────────────────────────────
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -97,6 +116,10 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(data.detail || `Server error: ${response.status}`);
       }
       lastResult = data;
+      lastResult.video_title = document.getElementById('videoTitle').textContent;
+
+      // Save session so popup can restore if closed
+      chrome.storage.session.set({ lastResult: data, currentUrl });
 
       renderSentiment(data.sentiment_summary);
       renderKeywords(data.keywords || []);
@@ -129,12 +152,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Pagination
   document.getElementById('prevBtn').onclick = () => {
-    if (currentPage > 0) renderPage(--currentPage);
+    if (currentPage > 0) { renderPage(--currentPage); chrome.storage.session.set({ currentPage }); }
   };
 
   document.getElementById('nextBtn').onclick = () => {
-    if (currentPage < Math.ceil(allComments.length / PER_PAGE) - 1)
+    if (currentPage < Math.ceil(allComments.length / PER_PAGE) - 1) {
       renderPage(++currentPage);
+      chrome.storage.session.set({ currentPage });
+    }
   };
 });
 
