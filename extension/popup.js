@@ -14,6 +14,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const urlConfirm = document.getElementById('urlConfirm');
 
 
+  // ── Tab switching ──────────────────────────────────────────
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+    });
+  });
+
   // ── URL confirm button ─────────────────────────────────────
   urlConfirm.addEventListener('click', async () => {
     const val = urlInput.value.trim();
@@ -90,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       renderSentiment(data.sentiment_summary);
       renderKeywords(data.keywords || []);
+      renderElbow(data.cluster_summary);
 
       allComments = data.comments;
       currentPage = 0;
@@ -183,6 +194,7 @@ async function generatePDF() {
 
   // Summary
   doc.text(`Positive: ${summary.positive_pct}%`, 10, y); y += 6;
+  doc.text(`Neutral:  ${summary.neutral_pct}%`, 10, y); y += 6;
   doc.text(`Negative: ${summary.negative_pct}%`, 10, y); y += 6;
   doc.text(`Confidence: ${summary.avg_confidence}`, 10, y); y += 10;
 
@@ -264,9 +276,59 @@ const fileName = `${safeTitle} - Sentiment Report.pdf`;
 doc.save(fileName);
 }
 
+// ── Render elbow chart ─────────────────────────────────────────────────────────
+let _elbowChart = null;
+
+function renderElbow(cluster) {
+  const emptyMsg = document.getElementById('modelEmpty');
+  if (emptyMsg) emptyMsg.style.display = 'none';
+
+  // Silhouette score
+  const sil = cluster.silhouette;
+  const silEl = document.getElementById('silhouetteVal');
+  silEl.textContent = sil.toFixed(3);
+  silEl.style.color = sil >= 0.5 ? 'var(--green)' : sil >= 0.25 ? 'var(--yellow)' : 'var(--accent)';
+
+  // Elbow chart
+  const labels = cluster.elbow_inertias.map((_, i) => `K=${i + 2}`);
+  const canvas = document.getElementById('elbowChart');
+
+  if (_elbowChart) { _elbowChart.destroy(); _elbowChart = null; }
+
+  _elbowChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Inertia',
+        data: cluster.elbow_inertias,
+        borderColor: '#ff3b3b',
+        backgroundColor: 'rgba(255,59,59,0.1)',
+        borderWidth: 2,
+        pointBackgroundColor: labels.map((l, i) => i === 1 ? '#ff3b3b' : '#afafaf'),
+        pointRadius: labels.map((_, i) => i === 1 ? 5 : 3),
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `Inertia: ${ctx.parsed.y.toFixed(1)}` } },
+      },
+      scales: {
+        x: { ticks: { color: '#afafaf', font: { size: 10 } }, grid: { color: '#242424' } },
+        y: { ticks: { color: '#afafaf', font: { size: 10 } }, grid: { color: '#242424' } },
+      },
+    },
+  });
+}
+
 // ── EXISTING FUNCTIONS (UNCHANGED) ───────────────────────────
 function renderSentiment(summary) {
   document.getElementById('posVal').textContent = `${summary.positive_pct}%`;
+  document.getElementById('neuVal').textContent = `${summary.neutral_pct}%`;
   document.getElementById('negVal').textContent = `${summary.negative_pct}%`;
 
   const bar = document.getElementById('sentimentBar');

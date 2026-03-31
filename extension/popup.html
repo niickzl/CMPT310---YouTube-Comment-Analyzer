@@ -45,6 +45,11 @@
           <div class="s-val" id="posVal">—</div>
           <div class="s-label">Positive</div>
         </div>
+        <div class="sentiment-card neutral">
+          <div class="s-icon">–</div>
+          <div class="s-val" id="neuVal">—</div>
+          <div class="s-label">Neutral</div>
+        </div>
         <div class="sentiment-card negative">
           <div class="s-icon">↓</div>
           <div class="s-val" id="negVal">—</div>
@@ -98,10 +103,17 @@
   <!-- ── Tab: Model ── -->
   <div class="tab-content" id="tab-model">
     <div class="dashboard-section">
-      <div class="comments-empty" style="padding-top: 80px;">Model info coming soon.</div>
+      <div class="section-label">K-Means Elbow Curve</div>
+      <canvas id="elbowChart" height="160"></canvas>
+      <div class="silhouette-row">
+        <span class="label">Silhouette Score (K=3)</span>
+        <span class="silhouette-val" id="silhouetteVal">—</span>
+      </div>
+      <div class="empty-msg" id="modelEmpty" style="padding-top: 30px;">Run analysis to see cluster evaluation.</div>
     </div>
   </div>
 
+  <script src="chart.umd.min.js"></script>
   <script src="jspdf.umd.min.js"></script>
   <script src="popup.js"></script>
 </body>

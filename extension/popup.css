@@ -145,6 +145,7 @@ body {
 }
 
 .sentiment-card.positive .s-val { color: var(--green); }
+.sentiment-card.neutral  .s-val { color: var(--yellow); }
 .sentiment-card.negative .s-val { color: var(--accent); }
 
 /* Bar */
@@ -244,26 +245,31 @@ body {
 }
 
 .comments-list {
-  height: 160px;
+  height: 260px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
   scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  scrollbar-color: var(--muted) var(--surface);
 }
 
 .comments-list::-webkit-scrollbar {
-  width: 3px;
+  width: 6px;
 }
 
 .comments-list::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--surface);
+  border-radius: 3px;
 }
 
 .comments-list::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--muted);
   border-radius: 3px;
+}
+
+.comments-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text);
 }
 
 .comment-item {
@@ -376,17 +382,9 @@ body {
   align-self: flex-start;
 }
 
-.sentiment-badge.positive {
-  background: rgba(0, 230, 118, 0.12);
-  color: var(--green);
-  border: 1px solid rgba(0, 230, 118, 0.25);
-}
-
-.sentiment-badge.negative {
-  background: rgba(255, 59, 59, 0.12);
-  color: var(--accent);
-  border: 1px solid rgba(255, 59, 59, 0.25);
-}
+.sentiment-badge.positive { background: rgba(0, 230, 118, 0.12); color: var(--green);  border: 1px solid rgba(0, 230, 118, 0.25); }
+.sentiment-badge.neutral  { background: rgba(255,215,64,0.12);   color: var(--yellow); border: 1px solid rgba(255,215,64,0.25); }
+.sentiment-badge.negative { background: rgba(255, 59, 59, 0.12);  color: var(--accent); border: 1px solid rgba(255, 59, 59, 0.25); }
 
 /* Keyword section */
 .keywords-section {
@@ -462,32 +460,39 @@ body {
 .tab-bar {
   display: flex;
   flex: 1;
-  gap: 2px;
+  gap: 3px;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 3px;
 }
 
 .tab-btn {
   flex: 1;
-  padding: 5px 0;
+  padding: 6px 0;
   background: none;
-  border: none;
+  border: 1px solid transparent;
   color: var(--muted);
   font-family: 'Nunito', sans-serif;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
   cursor: pointer;
   border-radius: 6px;
-  transition: color 0.15s, background 0.15s;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
 .tab-btn:hover  { color: var(--text); background: var(--surface); }
-.tab-btn.active { color: var(--text); background: var(--surface); }
+.tab-btn.active {
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+}
 
 /* ── Export button (header) ───────────────────────────────── */
 .export-btn-header {
   padding: 5px 10px;
-  background: var(--surface);
-  color: var(--muted);
-  border: 1px solid var(--border);
+  background: #ff6b35;
+  color: white;
+  border: none;
   border-radius: 6px;
   font-family: 'Nunito', sans-serif;
   font-size: 10px;
@@ -495,10 +500,10 @@ body {
   letter-spacing: 0.05em;
   cursor: pointer;
   flex-shrink: 0;
-  transition: color 0.15s, border-color 0.15s;
+  transition: opacity 0.15s;
 }
-.export-btn-header:hover     { color: var(--text); border-color: var(--muted); }
-.export-btn-header:disabled  { opacity: 0.3; cursor: not-allowed; }
+.export-btn-header:hover    { opacity: 0.85; }
+.export-btn-header:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* ── Tab content ──────────────────────────────────────────── */
 .tab-content        { display: none; }
@@ -544,3 +549,16 @@ body {
   transition: opacity 0.15s;
 }
 .url-confirm-btn:hover { opacity: 0.85; }
+/* ── Model tab ────────────────────────────────────────────── */
+.silhouette-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.silhouette-val {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--yellow);
+}

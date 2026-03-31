@@ -59,10 +59,11 @@ def get_sarcasm_classifier():
 
 @dataclass
 class SentimentResult:
-    label: str          # "positive" | "negative"
+    label: str          # "positive" | "neutral" | "negative"
     raw_label: str      # "positive" | "neutral" | "negative" (RoBERTa output)
     score: float        # confidence 0.0 - 1.0
     is_positive: bool
+    is_neutral: bool
     is_sarcastic: bool
 
 
@@ -95,17 +96,27 @@ def predict(texts: list[str], classifier=None) -> list[SentimentResult]:
     results = []
     for s, sar in zip(sentiment_raw, sarcasm_raw):
         raw_label    = s["label"].lower()
+        is_neutral   = raw_label == "neutral"
         is_positive  = raw_label == "positive"
         is_sarcastic = sar["label"] == "SARCASM" and sar["score"] >= 0.80
 
-        if is_sarcastic:
+        # Sarcasm flips positive↔negative only, never neutral
+        if is_sarcastic and not is_neutral:
             is_positive = not is_positive
 
+        if is_neutral:
+            label = "neutral"
+        elif is_positive:
+            label = "positive"
+        else:
+            label = "negative"
+
         results.append(SentimentResult(
-            label="positive" if is_positive else "negative",
+            label=label,
             raw_label=raw_label,
             score=round(float(s["score"]), 3),
             is_positive=is_positive,
+            is_neutral=is_neutral,
             is_sarcastic=is_sarcastic,
         ))
 
@@ -120,20 +131,25 @@ def summarize(results: list[SentimentResult]) -> dict:
         return {
             "positive_count": 0,
             "negative_count": 0,
+            "neutral_count":  0,
             "positive_pct":   0.0,
             "negative_pct":   0.0,
+            "neutral_pct":    0.0,
             "avg_confidence": 0.0,
         }
 
-    total    = len(results)
-    pos      = sum(1 for r in results if r.is_positive)
-    neg      = total - pos
+    total   = len(results)
+    pos     = sum(1 for r in results if r.is_positive)
+    neu     = sum(1 for r in results if r.is_neutral)
+    neg     = total - pos - neu
     avg_conf = float(np.mean([r.score for r in results]))
 
     return {
         "positive_count": pos,
         "negative_count": neg,
+        "neutral_count":  neu,
         "positive_pct":   round(pos / total * 100, 1),
         "negative_pct":   round(neg / total * 100, 1),
+        "neutral_pct":    round(neu / total * 100, 1),
         "avg_confidence": round(avg_conf, 3),
     }

@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from model import SentimentResult, get_or_load, get_sarcasm_classifier, predict, summarize
+from cluster import ClusterResult, ClusterSummary, cluster_comments
 from keywords import extract_keywords
 from preprocess import clean_batch
 from youtube import (
@@ -74,8 +75,10 @@ class CommentResult(BaseModel):
 class SentimentSummary(BaseModel):
     positive_count: int
     negative_count: int
+    neutral_count:  int
     positive_pct: float
     negative_pct: float
+    neutral_pct:  float
     avg_confidence: float
 
 
@@ -84,10 +87,23 @@ class KeywordItem(BaseModel):
     count: int
 
 
+class ClusterSummarySchema(BaseModel):
+    content_count: int
+    technical_count: int
+    general_count: int
+    content_pct: float
+    technical_pct: float
+    general_pct: float
+    top_keywords: dict[str, list[str]]
+    elbow_inertias: list[float]
+    silhouette: float
+
+
 class AnalyzeResponse(BaseModel):
     video_id: str
     comment_count: int
     sentiment_summary: SentimentSummary
+    cluster_summary: ClusterSummarySchema
     keywords: list[KeywordItem]
     comments: list[CommentResult]
 
@@ -159,15 +175,33 @@ def analyze(req: AnalyzeRequest):
     # 7. Get keywords (use emoji-stripped path for cleaner noun extraction)
     top_keywords = extract_keywords(cleaned_texts, top_n=5)
 
+    # 8. K-Means thematic clustering
+    cluster_results: list[ClusterResult]
+    cluster_summary: ClusterSummary
+    cluster_results, cluster_summary = cluster_comments(cleaned_texts)
+    cluster_summary_schema = ClusterSummarySchema(
+        content_count=cluster_summary.content_count,
+        technical_count=cluster_summary.technical_count,
+        general_count=cluster_summary.general_count,
+        content_pct=cluster_summary.content_pct,
+        technical_pct=cluster_summary.technical_pct,
+        general_pct=cluster_summary.general_pct,
+        top_keywords=cluster_summary.top_keywords,
+        elbow_inertias=cluster_summary.elbow_inertias,
+        silhouette=cluster_summary.silhouette,
+    )
+
     logger.info(
-        "video=%s comments=%d positive=%.1f%% negative=%.1f%%",
+        "video=%s comments=%d positive=%.1f%% negative=%.1f%% neutral=%.1f%% silhouette=%.3f",
         video_id, len(comments), summary.positive_pct, summary.negative_pct,
+        summary.neutral_pct, cluster_summary.silhouette,
     )
 
     return AnalyzeResponse(
         video_id=video_id,
         comment_count=len(comments),
         sentiment_summary=summary,
+        cluster_summary=cluster_summary_schema,
         keywords=[KeywordItem(word=w, count=c) for w, c in top_keywords],
         comments=comments,
     )
