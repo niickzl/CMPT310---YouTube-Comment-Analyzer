@@ -6,75 +6,100 @@
 </head>
 <body>
 
+  <!-- Header: icon + tabs + export -->
   <div class="header">
     <img class="header-icon" src="icons/YTCA.png" alt="icon">
-    <div class="brand-wrap">
-      <div class="brand">YT Comment Analyzer</div>
-      <div class="brand-sub">AI-powered YouTube comment insights</div>
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="analyze">Analyze</button>
+      <button class="tab-btn" data-tab="comments">Comments</button>
+      <button class="tab-btn" data-tab="model">Model</button>
     </div>
+    <button id="exportPdf" class="export-btn-header">Export</button>
   </div>
 
-  <div class="video-section">
-    <div class="label">Currently On</div>
-    <div class="video-title loading" id="videoTitle">Detecting video...</div>
-    <button id="exportPdf" class="export-btn">Export as PDF</button>
-  </div>
+  <!-- ── Tab: Analyze ── -->
+  <div class="tab-content active" id="tab-analyze">
 
-  <div class="divider"></div>
+    <div class="video-section">
+      <div class="label">Currently On</div>
+      <div class="video-title loading" id="videoTitle">Detecting video...</div>
+    </div>
 
-  <div class="dashboard-section">
-    <div class="section-label">Sentiment Overview</div>
+    <div class="divider"></div>
 
-    <div class="sentiment-row">
-      <div class="sentiment-card positive">
-        <div class="s-icon">↑</div>
-        <div class="s-val" id="posVal">—</div>
-        <div class="s-label">Positive</div>
-      </div>
-      <div class="sentiment-card negative">
-        <div class="s-icon">↓</div>
-        <div class="s-val" id="negVal">—</div>
-        <div class="s-label">Negative</div>
+    <div class="video-section">
+      <div class="label">Or enter a URL</div>
+      <div class="url-row">
+        <input class="url-input" id="urlInput" type="text" placeholder="https://youtube.com/watch?v=...">
+        <button class="url-confirm-btn" id="urlConfirm">Go</button>
       </div>
     </div>
 
-    <div class="sentiment-bar-wrap">
-      <div class="bar-track">
-        <div class="bar-fill" id="sentimentBar"></div>
+    <div class="divider"></div>
+
+    <div class="dashboard-section">
+      <div class="section-label">Sentiment Overview</div>
+      <div class="sentiment-row">
+        <div class="sentiment-card positive">
+          <div class="s-icon">↑</div>
+          <div class="s-val" id="posVal">—</div>
+          <div class="s-label">Positive</div>
+        </div>
+        <div class="sentiment-card negative">
+          <div class="s-icon">↓</div>
+          <div class="s-val" id="negVal">—</div>
+          <div class="s-label">Negative</div>
+        </div>
+      </div>
+      <div class="sentiment-bar-wrap">
+        <div class="bar-track">
+          <div class="bar-fill" id="sentimentBar"></div>
+        </div>
       </div>
     </div>
+
+    <div class="divider"></div>
+
+    <div class="footer">
+      <button class="analyze-btn" id="analyzeBtn">Analyze Comments</button>
+    </div>
+
   </div>
 
-  <div class="divider"></div>
+  <!-- ── Tab: Comments ── -->
+  <div class="tab-content" id="tab-comments">
 
-  <div class="keywords-section">
-    <div class="section-label">Top Keywords</div>
-    <div class="keywords-list" id="keywordsList">
-      <div class="comments-empty">Keywords will appear after analysis.</div>
+    <div class="keywords-section">
+      <div class="section-label">Top Keywords</div>
+      <div class="keywords-list" id="keywordsList">
+        <div class="comments-empty">Keywords will appear after analysis.</div>
+      </div>
     </div>
+
+    <div class="divider"></div>
+
+    <div class="comments-section">
+      <div class="comments-header">
+        <div class="section-label">Scanned Comments</div>
+        <div class="page-info" id="pageInfo">—</div>
+      </div>
+      <div class="comments-list" id="commentsList">
+        <div class="comments-empty">Comments will appear after analysis.</div>
+      </div>
+      <div class="pagination">
+        <button class="page-btn" id="prevBtn" disabled>&#8592;</button>
+        <div class="page-dots" id="pageDots"></div>
+        <button class="page-btn" id="nextBtn" disabled>&#8594;</button>
+      </div>
+    </div>
+
   </div>
 
-  <div class="divider"></div>
-
-  <div class="comments-section">
-    <div class="comments-header">
-      <div class="section-label">Scanned Comments</div>
-      <div class="page-info" id="pageInfo">—</div>
+  <!-- ── Tab: Model ── -->
+  <div class="tab-content" id="tab-model">
+    <div class="dashboard-section">
+      <div class="comments-empty" style="padding-top: 80px;">Model info coming soon.</div>
     </div>
-    <div class="comments-list" id="commentsList">
-      <div class="comments-empty">Comments will appear after analysis.</div>
-    </div>
-    <div class="pagination" id="pagination">
-      <button class="page-btn" id="prevBtn" disabled>&#8592;</button>
-      <div class="page-dots" id="pageDots"></div>
-      <button class="page-btn" id="nextBtn" disabled>&#8594;</button>
-    </div>
-  </div>
-
-  <div class="divider"></div>
-
-  <div class="footer">
-    <button class="analyze-btn" id="analyzeBtn">Analyze Comments</button>
   </div>
 
   <script src="jspdf.umd.min.js"></script>

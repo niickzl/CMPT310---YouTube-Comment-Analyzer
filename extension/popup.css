@@ -458,3 +458,89 @@ body {
   opacity: 0.4;
   cursor: not-allowed;
 }
+/* ── Tab bar ──────────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 5px 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+.tab-btn:hover  { color: var(--text); background: var(--surface); }
+.tab-btn.active { color: var(--text); background: var(--surface); }
+
+/* ── Export button (header) ───────────────────────────────── */
+.export-btn-header {
+  padding: 5px 10px;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.export-btn-header:hover     { color: var(--text); border-color: var(--muted); }
+.export-btn-header:disabled  { opacity: 0.3; cursor: not-allowed; }
+
+/* ── Tab content ──────────────────────────────────────────── */
+.tab-content        { display: none; }
+.tab-content.active { display: block; }
+
+/* ── URL input ────────────────────────────────────────────── */
+.url-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: text;
+  user-select: text;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.url-input:focus       { border-color: var(--muted); }
+.url-input::placeholder { color: var(--muted); }
+
+/* ── URL row + confirm button ─────────────────────────────── */
+.url-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.url-confirm-btn {
+  padding: 7px 12px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+.url-confirm-btn:hover { opacity: 0.85; }

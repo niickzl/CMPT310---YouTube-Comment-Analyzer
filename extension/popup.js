@@ -10,6 +10,37 @@ document.addEventListener('DOMContentLoaded', () => {
   const titleEl    = document.getElementById('videoTitle');
   const analyzeBtn = document.getElementById('analyzeBtn');
   const exportBtn  = document.getElementById('exportPdf');
+  const urlInput   = document.getElementById('urlInput');
+  const urlConfirm = document.getElementById('urlConfirm');
+
+
+  // ── URL confirm button ─────────────────────────────────────
+  urlConfirm.addEventListener('click', async () => {
+    const val = urlInput.value.trim();
+    if (!val) return;
+    const isValid = val.includes('youtube.com/watch') ||
+                    val.includes('youtube.com/shorts') ||
+                    val.includes('youtu.be/');
+    if (!isValid) {
+      titleEl.textContent = 'Invalid YouTube URL.';
+      titleEl.className = 'video-title error';
+      return;
+    }
+    currentUrl = val;
+    titleEl.textContent = 'Loading title...';
+    titleEl.className = 'video-title loading';
+    analyzeBtn.disabled = false;
+    analyzeBtn.style.opacity = '1';
+    analyzeBtn.style.cursor = 'pointer';
+    try {
+      const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(val)}&format=json`);
+      const json = await res.json();
+      titleEl.textContent = json.title || val;
+    } catch {
+      titleEl.textContent = val;
+    }
+    titleEl.className = 'video-title';
+  });
 
   // ── Detect active tab ──────────────────────────────────────
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {

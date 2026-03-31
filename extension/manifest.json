@@ -5,7 +5,8 @@
   "permissions": ["tabs", "activeTab"],
   "host_permissions": [
     "http://localhost:8000/*",
-    "https://img.youtube.com/*"
+    "https://img.youtube.com/*",
+    "https://www.youtube.com/*"
   ],
   "icons": {
     "16": "icons/YTCA.png",
