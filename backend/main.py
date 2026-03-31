@@ -47,7 +47,7 @@ def load_model():
     logger.info("All models ready.")
 
 
-# ── Schemas ────────────────────────────────────────────────────────────────────
+# Schemas
 
 class AnalyzeRequest(BaseModel):
     url: str
@@ -110,7 +110,7 @@ class AnalyzeResponse(BaseModel):
     comments: list[CommentResult]
 
 
-# ── Routes ─────────────────────────────────────────────────────────────────────
+# Routes
 
 @app.get("/health")
 def health():
@@ -119,8 +119,6 @@ def health():
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest):
-    """Fetch, preprocess, and sentiment-score comments for a YouTube video."""
-
     api_key = os.getenv("YOUTUBE_API_KEY")
     if not api_key:
         raise HTTPException(

@@ -28,23 +28,6 @@ class QuotaExceededError(Exception):
 
 
 def extract_video_id(url: str) -> str:
-    """Extract the video ID from a YouTube URL.
-
-    Handles standard and shortened URL formats:
-        - https://www.youtube.com/watch?v=VIDEO_ID
-        - https://youtu.be/VIDEO_ID
-        - https://www.youtube.com/embed/VIDEO_ID
-        - URLs with extra query params (playlists, timestamps, etc.)
-
-    Args:
-        url: A full YouTube URL string.
-
-    Returns:
-        The 11-character video ID.
-
-    Raises:
-        ValueError: If the URL cannot be parsed as a valid YouTube video URL.
-    """
     if not url or not isinstance(url, str):
         raise ValueError(f"Invalid URL: {url!r}")
 
@@ -79,32 +62,6 @@ def fetch_comments(
     api_key: str,
     max_results: int = 100,
 ) -> list[dict]:
-    """Fetch top-level comments for a YouTube video.
-
-    Paginates through the API automatically until `max_results` comments
-    are collected or no more pages remain.
-
-    Args:
-        video_id: An 11-character YouTube video ID.
-        api_key: A valid YouTube Data API v3 key.
-        max_results: Maximum number of comments to retrieve (default 100).
-
-    Returns:
-        A list of comment dicts, each containing::
-
-            {
-                "author": str,
-                "text": str,
-                "likes": int,
-                "published_at": str,   # ISO 8601 timestamp
-            }
-
-    Raises:
-        VideoNotFoundError: If the video does not exist.
-        CommentsDisabledError: If comments are turned off for the video.
-        QuotaExceededError: If the API key's daily quota is exhausted.
-        ValueError: If video_id or api_key is empty.
-    """
     if not video_id:
         raise ValueError("video_id must not be empty")
     if not api_key:

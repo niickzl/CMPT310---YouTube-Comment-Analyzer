@@ -26,18 +26,6 @@ def extract_keywords(
     texts: list[str],
     top_n: int = 5,
 ) -> list[tuple[str, int]]:
-    """Extract top keywords from a list of cleaned comment texts.
-
-    Keeps nouns and proper nouns, skips stop words and short ones,
-    then returns the most common ones with their counts.
-
-    Args:
-        texts: List of cleaned comment strings.
-        top_n: Number of top keywords to return.
-
-    Returns:
-        List of (word, count) tuples sorted by frequency descending.
-    """
     if not texts:
         return []
 

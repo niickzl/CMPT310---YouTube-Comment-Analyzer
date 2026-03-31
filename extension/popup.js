@@ -7,20 +7,6 @@ let lastResult = null;
 let currentUrl = null;
 let activeFilter = 'all'; // "all" | "Content" | "Technical" | "General" | keyword string
 
-// ── Session storage helper ────────────────────────────────────
-// chrome.storage.session can be undefined on older Chrome or if
-// the storage permission hasn't propagated yet.
-const session = {
-  get: (keys, cb) => {
-    try { session.get(keys, cb); }
-    catch { cb({}); }
-  },
-  set: (data) => {
-    try { session.set(data); }
-    catch { /* silently ignore */ }
-  },
-};
-
 document.addEventListener('DOMContentLoaded', () => {
   const titleEl    = document.getElementById('videoTitle');
   const analyzeBtn = document.getElementById('analyzeBtn');
@@ -28,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const urlInput   = document.getElementById('urlInput');
   const urlConfirm = document.getElementById('urlConfirm');
 
-  // ── Tab switching ──────────────────────────────────────────
+  // Tab switching
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -38,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ── Detect active tab + restore session ───────────────────
+  // Detect active tab
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const currentTab = tabs[0];
     // DONT REMOVE MY YT SHORTS CHECKER
@@ -47,47 +33,15 @@ document.addEventListener('DOMContentLoaded', () => {
        currentTab.url.includes('youtube.com/shorts'));
 
     if (isYouTube) {
-      // Live YouTube tab — use tab for URL/title, restore results only
       currentUrl = currentTab.url;
       titleEl.textContent = currentTab.title?.replace(' - YouTube', '').trim() || 'Unknown Video';
       titleEl.className = 'video-title';
-      session.get(['lastResult', 'currentPage'], (saved) => {
-        if (!saved.lastResult) return;
-        lastResult  = saved.lastResult;
-        currentPage = saved.currentPage || 0;
-        allComments = lastResult.comments || [];
-        renderSentiment(lastResult.sentiment_summary);
-        renderKeywords(lastResult.keywords || []);
-        renderElbow(lastResult.cluster_summary);
-        renderPage(currentPage);
-      });
     } else {
-      // Not on YouTube — restore full session if available
       disableButton();
-      session.get(['lastResult', 'currentUrl', 'currentPage'], (saved) => {
-        if (!saved.lastResult) {
-          titleEl.textContent = 'Open a YouTube video to begin.';
-          titleEl.className = 'video-title error';
-          return;
-        }
-        lastResult  = saved.lastResult;
-        currentUrl  = saved.currentUrl || null;
-        currentPage = saved.currentPage || 0;
-        allComments = lastResult.comments || [];
-        titleEl.textContent = lastResult.video_title || 'Restored session';
-        titleEl.className = 'video-title';
-        analyzeBtn.disabled = false;
-        analyzeBtn.style.opacity = '1';
-        analyzeBtn.style.cursor = 'pointer';
-        renderSentiment(lastResult.sentiment_summary);
-        renderKeywords(lastResult.keywords || []);
-        renderElbow(lastResult.cluster_summary);
-        renderPage(currentPage);
-      });
     }
   });
 
-  // ── URL confirm button ─────────────────────────────────────
+  // URL confirm button
   urlConfirm.addEventListener('click', async () => {
     const val = urlInput.value.trim();
     if (!val) return;
@@ -115,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     titleEl.className = 'video-title';
   });
 
-  // ── Analyze button ─────────────────────────────────────────
+  // Analyze button
   analyzeBtn.addEventListener('click', async () => {
     if (!currentUrl) return;
     setLoading(true);
@@ -135,9 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
       lastResult = data;
       lastResult.video_title = document.getElementById('videoTitle').textContent;
 
-      // Save session so popup can restore if closed
-      session.set({ lastResult, currentUrl });
-
       renderSentiment(data.sentiment_summary);
       renderKeywords(data.keywords || []);
       renderElbow(data.cluster_summary);
@@ -154,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── Export PDF ─────────────────────────────────────────────
+  // Export PDF
   exportBtn.addEventListener('click', async () => {
     if (!lastResult) return alert("Run analysis first!");
     exportBtn.disabled = true;
@@ -164,24 +115,23 @@ document.addEventListener('DOMContentLoaded', () => {
     exportBtn.textContent = "Export";
   });
 
-  // ── Filter buttons ─────────────────────────────────────────
+  // Filter buttons
   document.getElementById('filterRow').addEventListener('click', (e) => {
     const btn = e.target.closest('.filter-btn');
     if (!btn) return;
     setFilter(btn.dataset.filter);
   });
   document.getElementById('prevBtn').onclick = () => {
-    if (currentPage > 0) { renderPage(--currentPage); session.set({ currentPage }); }
+    if (currentPage > 0) { renderPage(--currentPage); }
   };
   document.getElementById('nextBtn').onclick = () => {
     if (currentPage < Math.ceil(filteredComments().length / PER_PAGE) - 1) {
       renderPage(++currentPage);
-      session.set({ currentPage });
     }
   };
 });
 
-// ── CLEAN TEXT (FIX BUGGED CHARACTERS) ───────────────────────
+// CLEAN TEXT (FIX BUGGED CHARACTERS)
 function cleanText(text) {
   return (text || "")
     .replace(/[^\x20-\x7E]/g, '')
@@ -189,7 +139,7 @@ function cleanText(text) {
     .trim();
 }
 
-// ── PDF GENERATOR ───────────────────────────────────────────
+// PDF GENERATOR
 async function generatePDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -282,7 +232,7 @@ async function generatePDF() {
   doc.save(`${safeTitle} - Sentiment Report.pdf`);
 }
 
-// ── Render cluster charts ─────────────────────────────────────
+// Render cluster charts
 let _scatterChart = null;
 
 function renderElbow(cluster) {
@@ -342,7 +292,7 @@ function renderElbow(cluster) {
   });
 }
 
-// ── Filter helpers ────────────────────────────────────────────
+// Filter helpers 
 function filteredComments() {
   if (activeFilter === 'all') return allComments;
   const cats = ['Content', 'Technical', 'General'];
@@ -370,7 +320,7 @@ function setFilter(filter) {
   renderPage(0);
 }
 
-// ── Render functions ──────────────────────────────────────────
+// Render functions
 function renderSentiment(summary) {
   document.getElementById('posVal').textContent = `${summary.positive_pct}%`;
   document.getElementById('neuVal').textContent = `${summary.neutral_pct}%`;

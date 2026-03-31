@@ -13,10 +13,10 @@ import re
 
 logger = logging.getLogger(__name__)
 
-# ── Regex patterns ─────────────────────────────────────────────────────────────
+# Regex patterns
 
-_URL_PATTERN = re.compile(r"https?://\S+|www\.\S+")
-_EMOJI_PATTERN = re.compile(
+URL_PATTERN = re.compile(r"https?://\S+|www\.\S+")
+EMOJI_PATTERN = re.compile(
     "["
     "\U0001f600-\U0001f64f"
     "\U0001f300-\U0001f5ff"
@@ -31,11 +31,11 @@ _EMOJI_PATTERN = re.compile(
     "]+",
     flags=re.UNICODE,
 )
-_WHITESPACE_PATTERN = re.compile(r"\s+")
+WHITESPACE_PATTERN = re.compile(r"\s+")
 
-# ── Slang normalization map ────────────────────────────────────────────────────
+# Slang normalization map
 
-_SLANG_MAP = {
+SLANG_MAP = {
     # Positive slang
     "slaps":                        "sounds amazing",
     "banger":                       "excellent",
@@ -92,55 +92,44 @@ _SLANG_MAP = {
 
 }
 
-_SLANG_PATTERN = re.compile(
+SLANG_PATTERN = re.compile(
     r"\b(" + "|".join(
         re.escape(k)
-        for k in sorted(_SLANG_MAP.keys(), key=len, reverse=True)
+        for k in sorted(SLANG_MAP.keys(), key=len, reverse=True)
     ) + r")\b",
     flags=re.IGNORECASE,
 )
 
 
-# ── Slang normalization ────────────────────────────────────────────────────────
+# Slang normalization
 
 def normalize_slang(text: str) -> str:
-    return _SLANG_PATTERN.sub(lambda m: _SLANG_MAP[m.group(0).lower()], text)
+    return SLANG_PATTERN.sub(lambda m: SLANG_MAP[m.group(0).lower()], text)
 
 
-# ── Two cleaning paths ─────────────────────────────────────────────────────────
+# Two cleaning paths
 
 def clean_for_sentiment(text: str) -> str:
-    """Clean for RoBERTa sentiment inference.
-
-    Keeps emojis and original casing — both carry sentiment signal.
-    Strips URLs, normalizes slang, collapses whitespace.
-    """
     if not text or not isinstance(text, str):
         return ""
-    text = _URL_PATTERN.sub("", text)
+    text = URL_PATTERN.sub("", text)
     text = normalize_slang(text)
-    text = _WHITESPACE_PATTERN.sub(" ", text).strip()
+    text = WHITESPACE_PATTERN.sub(" ", text).strip()
     return text
 
 
 def clean_for_clustering(text: str) -> str:
-    """Clean for TF-IDF vectorization and K-Means clustering.
-
-    Strips emojis (noise for term frequency) and lowercases
-    (so Love/love/LOVE map to the same feature).
-    Strips URLs, normalizes slang, collapses whitespace.
-    """
     if not text or not isinstance(text, str):
         return ""
-    text = _URL_PATTERN.sub("", text)
-    text = _EMOJI_PATTERN.sub("", text)
+    text = URL_PATTERN.sub("", text)
+    text = EMOJI_PATTERN.sub("", text)
     text = normalize_slang(text)
-    text = _WHITESPACE_PATTERN.sub(" ", text).strip()
+    text = WHITESPACE_PATTERN.sub(" ", text).strip()
     text = text.lower()
     return text
 
 
-# ── Batch helpers ──────────────────────────────────────────────────────────────
+# Batch helpers
 
 def sentiment_batch(comments: list[str]) -> list[str]:
     return [clean_for_sentiment(c) for c in comments] if comments else []
@@ -150,6 +139,6 @@ def clustering_batch(comments: list[str]) -> list[str]:
     return [clean_for_clustering(c) for c in comments] if comments else []
 
 
-# ── Backwards compatibility ────────────────────────────────────────────────────
+# Backwards compatibility
 def clean_batch(comments: list[str]) -> list[str]:
     return clustering_batch(comments)

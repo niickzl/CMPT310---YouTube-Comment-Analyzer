@@ -22,7 +22,7 @@ from sklearn.metrics import silhouette_score
 
 logger = logging.getLogger(__name__)
 
-# ── SpaCy model ────────────────────────────────────────────────────────────────
+# SpaCy model 
 # Run: python -m spacy download en_core_web_sm
 _nlp = None
 
@@ -35,7 +35,7 @@ def _get_nlp():
     return _nlp
 
 
-# ── Category keyword signatures ────────────────────────────────────────────────
+# Category keyword signatures
 # These keyword sets guide label assignment after clustering.
 # K-Means finds the clusters unsupervised; we then match each cluster
 # centroid's top terms against these sets to assign a human-readable label.
@@ -67,7 +67,7 @@ _CATEGORY_KEYWORDS = {
 K = 3  # number of clusters = number of categories
 
 
-# ── Data classes ───────────────────────────────────────────────────────────────
+# Data classes
 
 @dataclass
 class ClusterResult:
@@ -89,10 +89,9 @@ class ClusterSummary:
     silhouette: float = 0.0
 
 
-# ── SpaCy lemmatization ────────────────────────────────────────────────────────
+# SpaCy lemmatization
 
 def _lemmatize(texts: list[str]) -> list[str]:
-    """Lemmatize and lowercase texts using SpaCy for better TF-IDF clustering."""
     nlp = _get_nlp()
     lemmatized = []
     for doc in nlp.pipe(texts, batch_size=64):
@@ -105,15 +104,9 @@ def _lemmatize(texts: list[str]) -> list[str]:
     return lemmatized
 
 
-# ── Label assignment ───────────────────────────────────────────────────────────
+# Label assignment
 
 def _assign_label(top_terms: list[str]) -> str:
-    """Match a cluster's top TF-IDF terms to the best category label.
-
-    Scores each category by counting how many of its signature keywords
-    appear in the cluster's top terms, then picks the highest scorer.
-    Falls back to 'General' on a tie or no match.
-    """
     scores = {cat: 0 for cat in _CATEGORY_KEYWORDS}
     for term in top_terms:
         for cat, keywords in _CATEGORY_KEYWORDS.items():
@@ -127,24 +120,12 @@ def _assign_label(top_terms: list[str]) -> str:
     return best
 
 
-# ── Main clustering function ───────────────────────────────────────────────────
+# Main clustering function
 
 def cluster_comments(
     cleaned_texts: list[str],
     n_top_keywords: int = 10,
 ) -> tuple[list[ClusterResult], ClusterSummary]:
-    """Cluster a list of cleaned comments into Content / Technical / General.
-
-    Args:
-        cleaned_texts:   Output of preprocess.clean_batch().
-        n_top_keywords:  Number of top TF-IDF terms to extract per cluster
-                         for label assignment and summary display.
-
-    Returns:
-        A tuple of:
-            - list[ClusterResult]: one entry per comment, with category label
-            - ClusterSummary: aggregate counts, percentages, and top keywords
-    """
     if not cleaned_texts:
         empty_summary = ClusterSummary(
             content_count=0, technical_count=0, general_count=0,

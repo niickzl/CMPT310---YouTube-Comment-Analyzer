@@ -19,43 +19,41 @@ from transformers import pipeline as hf_pipeline
 
 logger = logging.getLogger(__name__)
 
-_classifier = None
-_sarcasm_classifier = None
+classifier = None
+sarcasm_classifier = None
 
 
-# ── Model loaders ──────────────────────────────────────────────────────────────
+# Model loaders
 
 def get_or_load():
-    """Return the RoBERTa classifier, loading it on first call."""
-    global _classifier
-    if _classifier is None:
+    global classifier
+    if classifier is None:
         logger.info("Loading twitter-roberta-base sentiment model...")
-        _classifier = hf_pipeline(
+        classifier = hf_pipeline(
             "text-classification",
             model="cardiffnlp/twitter-roberta-base-sentiment-latest",
             truncation=True,
             max_length=512,
         )
         logger.info("RoBERTa base sentiment model loaded.")
-    return _classifier
+    return classifier
 
 
 def get_sarcasm_classifier():
-    """Return the sarcasm detector, loading it on first call."""
-    global _sarcasm_classifier
-    if _sarcasm_classifier is None:
+    global sarcasm_classifier
+    if sarcasm_classifier is None:
         logger.info("Loading sarcasm classifier...")
-        _sarcasm_classifier = hf_pipeline(
+        sarcasm_classifier = hf_pipeline(
             "text-classification",
             model="helinivan/english-sarcasm-detector",
             truncation=True,
             max_length=512,
         )
         logger.info("Sarcasm classifier loaded.")
-    return _sarcasm_classifier
+    return sarcasm_classifier
 
 
-# ── Data class ─────────────────────────────────────────────────────────────────
+# Data class
 
 @dataclass
 class SentimentResult:
@@ -67,21 +65,9 @@ class SentimentResult:
     is_sarcastic: bool
 
 
-# ── Inference ──────────────────────────────────────────────────────────────────
+# Inference
 
 def predict(texts: list[str], classifier=None) -> list[SentimentResult]:
-    """Run RoBERTa large sentiment inference with sarcasm correction.
-
-    Neutral is bucketed as negative for the binary dashboard display
-    but stored in raw_label for reference.
-
-    Args:
-        texts:      List of cleaned comment strings (emojis kept).
-        classifier: Optional pre-loaded pipeline. Auto-loads if None.
-
-    Returns:
-        A list of SentimentResult, one per input, in the same order.
-    """
     if not texts:
         return []
 
@@ -123,7 +109,7 @@ def predict(texts: list[str], classifier=None) -> list[SentimentResult]:
     return results
 
 
-# ── Aggregation ────────────────────────────────────────────────────────────────
+# Aggregation
 
 def summarize(results: list[SentimentResult]) -> dict:
     """Aggregate SentimentResults into dashboard-ready stats."""
