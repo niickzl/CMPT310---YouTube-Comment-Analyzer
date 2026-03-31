@@ -18,7 +18,7 @@ def _get_nlp():
     global _nlp
     if _nlp is None:
         logger.info("Loading spaCy model...")
-        _nlp = spacy.load("en_core_web_sm")
+        _nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
     return _nlp
 
 
@@ -44,7 +44,7 @@ def extract_keywords(
     nlp = _get_nlp()
     counter: Counter = Counter()
 
-    for doc in nlp.pipe(texts, batch_size=50, disable=["parser", "ner"]):
+    for doc in nlp.pipe(texts, batch_size=50):
         for token in doc:
             if (
                 token.pos_ in ("NOUN", "PROPN")

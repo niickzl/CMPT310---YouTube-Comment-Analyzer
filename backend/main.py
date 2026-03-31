@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from model import SentimentResult, get_or_train, predict, summarize
+from model import SentimentResult, get_or_load, get_sarcasm_classifier, predict, summarize
 from keywords import extract_keywords
 from preprocess import clean_batch
 from youtube import (
@@ -38,16 +38,12 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
-# Pre-load model once at startup so the first request isn't slow
-_pipeline = None
-
-
 @app.on_event("startup")
 def load_model():
-    global _pipeline
-    logger.info("Loading sentiment model...")
-    _pipeline = get_or_train()
-    logger.info("Sentiment model ready.")
+    logger.info("Loading models...")
+    get_or_load()           # twitter-roberta-large
+    get_sarcasm_classifier()
+    logger.info("All models ready.")
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────────
@@ -72,6 +68,7 @@ class CommentResult(BaseModel):
     published_at: str
     sentiment: str       # "positive" | "negative"
     confidence: float    # 0.0 – 1.0
+    is_sarcastic: bool
 
 
 class SentimentSummary(BaseModel):
@@ -133,31 +130,33 @@ def analyze(req: AnalyzeRequest):
     except QuotaExceededError as e:
         raise HTTPException(status_code=429, detail=str(e))
 
-    # 3. Preprocess — strip URLs, emojis, excess whitespace
+    # 3. Preprocess — keeps emojis so RoBERTa reads them as sentiment signal
     raw_texts = [c["text"] for c in raw_comments]
-    cleaned_texts = clean_batch(raw_texts)
+    sentiment_texts = clean_batch(raw_texts)
+    cleaned_texts   = clean_batch(raw_texts)
 
-    # 4. Run baseline sentiment model
-    sentiment_results: list[SentimentResult] = predict(cleaned_texts, _pipeline)
+    # 4. Run RoBERTa-large sentiment inference + sarcasm correction
+    sentiment_results: list[SentimentResult] = predict(sentiment_texts)
 
     # 5. Assemble per-comment results
     comments = [
         CommentResult(
             author=raw["author"],
             text=raw["text"],
-            cleaned_text=cleaned,
+            cleaned_text=s_text,
             likes=raw["likes"],
             published_at=raw["published_at"],
             sentiment=result.label,
             confidence=result.score,
+            is_sarcastic=result.is_sarcastic,
         )
-        for raw, cleaned, result in zip(raw_comments, cleaned_texts, sentiment_results)
+        for raw, s_text, result in zip(raw_comments, sentiment_texts, sentiment_results)
     ]
 
     # 6. Aggregate sentiment summary for the dashboard
     summary = SentimentSummary(**summarize(sentiment_results))
 
-    # 7.Get keywords
+    # 7. Get keywords (use emoji-stripped path for cleaner noun extraction)
     top_keywords = extract_keywords(cleaned_texts, top_n=5)
 
     logger.info(

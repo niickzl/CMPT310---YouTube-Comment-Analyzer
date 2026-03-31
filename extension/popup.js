@@ -22,8 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // DONT REMOVE MY YT SHORTS CHECKER
     currentUrl = currentTab.url;
-    const isYouTube = currentUrl.includes('youtube.com/watch');
+    const isYouTube = currentUrl.includes('youtube.com/watch') ||
+                      currentUrl.includes('youtube.com/shorts');
 
     if (!isYouTube) {
       titleEl.textContent = 'Open a YouTube video to begin.';
@@ -48,7 +50,11 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ url: currentUrl, max_results: 100 }),
       });
 
+      // Dont remove my error checker
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || `Server error: ${response.status}`);
+      }
       lastResult = data;
 
       renderSentiment(data.sentiment_summary);
@@ -258,8 +264,13 @@ function renderKeywords(keywords) {
   });
 }
 
+// fix pages
 function renderPage(page) {
-  const list = document.getElementById('commentsList');
+  const list      = document.getElementById('commentsList');
+  const pageInfo  = document.getElementById('pageInfo');
+  const prevBtn   = document.getElementById('prevBtn');
+  const nextBtn   = document.getElementById('nextBtn');
+  const totalPages = Math.ceil(allComments.length / PER_PAGE);
   const start = page * PER_PAGE;
   const slice = allComments.slice(start, start + PER_PAGE);
 
@@ -278,6 +289,10 @@ function renderPage(page) {
 
     list.appendChild(item);
   });
+
+  pageInfo.textContent = `${page + 1} / ${totalPages}`;
+  prevBtn.disabled = page === 0;
+  nextBtn.disabled = page >= totalPages - 1;
 }
 
 function disableButton() {
