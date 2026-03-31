@@ -88,6 +88,12 @@
         <div class="section-label">Scanned Comments</div>
         <div class="page-info" id="pageInfo">—</div>
       </div>
+      <div class="filter-row" id="filterRow">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="Content">Content</button>
+        <button class="filter-btn" data-filter="Technical">Technical</button>
+        <button class="filter-btn" data-filter="General">General</button>
+      </div>
       <div class="comments-list" id="commentsList">
         <div class="comments-empty">Comments will appear after analysis.</div>
       </div>
@@ -103,12 +109,8 @@
   <!-- ── Tab: Model ── -->
   <div class="tab-content" id="tab-model">
     <div class="dashboard-section">
-      <div class="section-label">K-Means Elbow Curve</div>
-      <canvas id="elbowChart" height="160"></canvas>
-      <div class="silhouette-row">
-        <span class="label">Silhouette Score (K=3)</span>
-        <span class="silhouette-val" id="silhouetteVal">—</span>
-      </div>
+      <div class="section-label">Cluster Map</div>
+      <canvas id="scatterChart" height="180"></canvas>
       <div class="empty-msg" id="modelEmpty" style="padding-top: 30px;">Run analysis to see cluster evaluation.</div>
     </div>
   </div>

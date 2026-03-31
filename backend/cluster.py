@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import spacy
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import silhouette_score
 
@@ -72,6 +73,8 @@ K = 3  # number of clusters = number of categories
 class ClusterResult:
     category: str       # "Content" | "Technical" | "General"
     cluster_id: int     # raw K-Means cluster index (0, 1, 2)
+    x: float = 0.0     # PCA dimension 1 (for scatter plot)
+    y: float = 0.0     # PCA dimension 2 (for scatter plot)
 
 
 @dataclass
@@ -83,8 +86,7 @@ class ClusterSummary:
     technical_pct: float
     general_pct: float
     top_keywords: dict[str, list[str]] = field(default_factory=dict)
-    elbow_inertias: list[float] = field(default_factory=list)  # inertia for K=2..10
-    silhouette: float = 0.0                                     # silhouette score for chosen K
+    silhouette: float = 0.0
 
 
 # ── SpaCy lemmatization ────────────────────────────────────────────────────────
@@ -167,15 +169,7 @@ def cluster_comments(
     X = vectorizer.fit_transform(lemmatized)
     feature_names = vectorizer.get_feature_names_out()
 
-    # 3. Elbow method — inertia for K=2..10 to justify cluster count
-    max_k = min(10, len(cleaned_texts))
-    elbow_inertias = []
-    for k in range(2, max_k + 1):
-        km_elbow = KMeans(n_clusters=k, random_state=42, n_init=10)
-        km_elbow.fit(X)
-        elbow_inertias.append(round(float(km_elbow.inertia_), 2))
-
-    # 4. K-Means clustering with chosen K
+    # 3. K-Means clustering with chosen K
     km = KMeans(n_clusters=effective_k, random_state=42, n_init=10)
     km.fit(X)
     raw_labels = km.labels_
@@ -187,6 +181,11 @@ def cluster_comments(
     else:
         sil = 0.0
     logger.info("Silhouette score (k=%d): %.3f", effective_k, sil)
+
+    # PCA — reduce to 2D for scatter plot visualisation
+    n_components = min(2, X.shape[0], X.shape[1])
+    pca = PCA(n_components=n_components, random_state=42)
+    coords = pca.fit_transform(X.toarray())  # shape: (n_comments, 2)
 
     # 5. Extract top terms per cluster centroid and assign category labels
     cluster_id_to_category: dict[int, str] = {}
@@ -205,8 +204,10 @@ def cluster_comments(
         ClusterResult(
             category=cluster_id_to_category[int(label)],
             cluster_id=int(label),
+            x=round(float(coords[i, 0]), 4),
+            y=round(float(coords[i, 1]), 4),
         )
-        for label in raw_labels
+        for i, label in enumerate(raw_labels)
     ]
 
     # 7. Aggregate summary
@@ -230,7 +231,6 @@ def cluster_comments(
         technical_pct=round(counts["Technical"] / total * 100, 1),
         general_pct=round(counts["General"] / total * 100, 1),
         top_keywords=top_keywords_by_category,
-        elbow_inertias=elbow_inertias,
         silhouette=sil,
     )
 

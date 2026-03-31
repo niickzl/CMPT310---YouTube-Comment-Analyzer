@@ -5,6 +5,7 @@ let allComments = [];
 let currentPage = 0;
 let lastResult = null;
 let currentUrl = null;
+let activeFilter = 'all'; // "all" | "Content" | "Technical" | "General" | keyword string
 
 // ── Session storage helper ────────────────────────────────────
 // chrome.storage.session can be undefined on older Chrome or if
@@ -163,12 +164,17 @@ document.addEventListener('DOMContentLoaded', () => {
     exportBtn.textContent = "Export";
   });
 
-  // ── Pagination ─────────────────────────────────────────────
+  // ── Filter buttons ─────────────────────────────────────────
+  document.getElementById('filterRow').addEventListener('click', (e) => {
+    const btn = e.target.closest('.filter-btn');
+    if (!btn) return;
+    setFilter(btn.dataset.filter);
+  });
   document.getElementById('prevBtn').onclick = () => {
     if (currentPage > 0) { renderPage(--currentPage); session.set({ currentPage }); }
   };
   document.getElementById('nextBtn').onclick = () => {
-    if (currentPage < Math.ceil(allComments.length / PER_PAGE) - 1) {
+    if (currentPage < Math.ceil(filteredComments().length / PER_PAGE) - 1) {
       renderPage(++currentPage);
       session.set({ currentPage });
     }
@@ -276,52 +282,92 @@ async function generatePDF() {
   doc.save(`${safeTitle} - Sentiment Report.pdf`);
 }
 
-// ── Render elbow chart ────────────────────────────────────────
-let _elbowChart = null;
+// ── Render cluster charts ─────────────────────────────────────
+let _scatterChart = null;
 
 function renderElbow(cluster) {
   if (!cluster) return;
   const emptyMsg = document.getElementById('modelEmpty');
   if (emptyMsg) emptyMsg.style.display = 'none';
 
-  const sil = cluster.silhouette;
-  const silEl = document.getElementById('silhouetteVal');
-  silEl.textContent = sil.toFixed(3);
-  silEl.style.color = sil >= 0.5 ? 'var(--green)' : sil >= 0.25 ? 'var(--yellow)' : 'var(--accent)';
+  const COLOURS = {
+    'Content':   { border: '#7c6af7', bg: 'rgba(124,106,247,0.7)' },
+    'Technical': { border: '#ffd740', bg: 'rgba(255,215,64,0.7)'  },
+    'General':   { border: '#40c4ff', bg: 'rgba(64,196,255,0.7)'  },
+  };
 
-  const labels = cluster.elbow_inertias.map((_, i) => `K=${i + 2}`);
-  const canvas = document.getElementById('elbowChart');
+  const groups = { Content: [], Technical: [], General: [] };
+  (lastResult.comments || []).forEach(c => {
+    if (groups[c.category]) groups[c.category].push(c);
+  });
 
-  if (_elbowChart) { _elbowChart.destroy(); _elbowChart = null; }
+  const scatterDatasets = Object.entries(groups).map(([cat, comments]) => ({
+    label: cat,
+    data: comments.map(c => ({ x: c.x, y: c.y, text: c.text, sentiment: c.sentiment })),
+    backgroundColor: COLOURS[cat].bg,
+    borderColor: COLOURS[cat].border,
+    borderWidth: 1,
+    pointRadius: 4,
+    pointHoverRadius: 6,
+  }));
 
-  _elbowChart = new Chart(canvas, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Inertia',
-        data: cluster.elbow_inertias,
-        borderColor: '#ff3b3b',
-        backgroundColor: 'rgba(255,59,59,0.1)',
-        borderWidth: 2,
-        pointBackgroundColor: labels.map((_, i) => i === 1 ? '#ff3b3b' : '#afafaf'),
-        pointRadius: labels.map((_, i) => i === 1 ? 5 : 3),
-        tension: 0.3,
-        fill: true,
-      }]
-    },
+  const scatterCanvas = document.getElementById('scatterChart');
+  if (_scatterChart) { _scatterChart.destroy(); _scatterChart = null; }
+
+  _scatterChart = new Chart(scatterCanvas, {
+    type: 'scatter',
+    data: { datasets: scatterDatasets },
     options: {
       responsive: true,
       plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: ctx => `Inertia: ${ctx.parsed.y.toFixed(1)}` } },
+        legend: {
+          display: true,
+          labels: { color: '#afafaf', font: { size: 10 }, boxWidth: 10 },
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const d = ctx.raw;
+              const preview = (d.text || '').slice(0, 60) + (d.text?.length > 60 ? '…' : '');
+              return [`[${ctx.dataset.label}] ${d.sentiment}`, preview];
+            },
+          },
+        },
       },
       scales: {
-        x: { ticks: { color: '#afafaf', font: { size: 10 } }, grid: { color: '#242424' } },
-        y: { ticks: { color: '#afafaf', font: { size: 10 } }, grid: { color: '#242424' } },
+        x: { ticks: { color: '#afafaf', font: { size: 9 } }, grid: { color: '#242424' } },
+        y: { ticks: { color: '#afafaf', font: { size: 9 } }, grid: { color: '#242424' } },
       },
     },
   });
+}
+
+// ── Filter helpers ────────────────────────────────────────────
+function filteredComments() {
+  if (activeFilter === 'all') return allComments;
+  const cats = ['Content', 'Technical', 'General'];
+  if (cats.includes(activeFilter)) {
+    return allComments.filter(c => c.category === activeFilter);
+  }
+  // keyword filter — match against comment text (case-insensitive)
+  return allComments.filter(c => c.text.toLowerCase().includes(activeFilter.toLowerCase()));
+}
+
+function setFilter(filter) {
+  activeFilter = filter;
+  currentPage  = 0;
+
+  // Update category filter button states
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === filter);
+  });
+
+  // Update keyword tag states
+  document.querySelectorAll('.keyword-tag').forEach(t => {
+    t.classList.toggle('active', t.dataset.keyword === filter);
+  });
+
+  renderPage(0);
 }
 
 // ── Render functions ──────────────────────────────────────────
@@ -347,7 +393,12 @@ function renderKeywords(keywords) {
   keywords.forEach(k => {
     const tag = document.createElement('span');
     tag.className = 'keyword-tag';
+    tag.dataset.keyword = k.word;
     tag.innerHTML = `${k.word} <span class="keyword-count">${k.count}</span>`;
+    tag.addEventListener('click', () => {
+      // Toggle off if already active
+      setFilter(activeFilter === k.word ? 'all' : k.word);
+    });
     list.appendChild(tag);
   });
 }
@@ -357,8 +408,9 @@ function renderPage(page) {
   const pageInfo   = document.getElementById('pageInfo');
   const prevBtn    = document.getElementById('prevBtn');
   const nextBtn    = document.getElementById('nextBtn');
-  const totalPages = Math.ceil(allComments.length / PER_PAGE);
-  const slice      = allComments.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+  const visible    = filteredComments();
+  const totalPages = Math.ceil(visible.length / PER_PAGE) || 1;
+  const slice      = visible.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
 
   list.innerHTML = '';
   slice.forEach(c => {

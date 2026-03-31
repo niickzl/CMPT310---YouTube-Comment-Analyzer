@@ -67,9 +67,12 @@ class CommentResult(BaseModel):
     cleaned_text: str    # preprocessed text fed to model
     likes: int
     published_at: str
-    sentiment: str       # "positive" | "negative"
+    sentiment: str       # "positive" | "neutral" | "negative"
     confidence: float    # 0.0 – 1.0
     is_sarcastic: bool
+    category: str        # "Content" | "Technical" | "General"
+    x: float             # PCA dimension 1
+    y: float             # PCA dimension 2
 
 
 class SentimentSummary(BaseModel):
@@ -95,7 +98,6 @@ class ClusterSummarySchema(BaseModel):
     technical_pct: float
     general_pct: float
     top_keywords: dict[str, list[str]]
-    elbow_inertias: list[float]
     silhouette: float
 
 
@@ -154,7 +156,12 @@ def analyze(req: AnalyzeRequest):
     # 4. Run RoBERTa-large sentiment inference + sarcasm correction
     sentiment_results: list[SentimentResult] = predict(sentiment_texts)
 
-    # 5. Assemble per-comment results
+    # 5. K-Means thematic clustering (done before assembly so coords are available)
+    cluster_results: list[ClusterResult]
+    cluster_summary: ClusterSummary
+    cluster_results, cluster_summary = cluster_comments(cleaned_texts)
+
+    # 6. Assemble per-comment results
     comments = [
         CommentResult(
             author=raw["author"],
@@ -165,20 +172,21 @@ def analyze(req: AnalyzeRequest):
             sentiment=result.label,
             confidence=result.score,
             is_sarcastic=result.is_sarcastic,
+            category=cluster.category,
+            x=cluster.x,
+            y=cluster.y,
         )
-        for raw, s_text, result in zip(raw_comments, sentiment_texts, sentiment_results)
+        for raw, s_text, result, cluster in zip(
+            raw_comments, sentiment_texts, sentiment_results, cluster_results
+        )
     ]
 
-    # 6. Aggregate sentiment summary for the dashboard
+    # 7. Aggregate sentiment summary
     summary = SentimentSummary(**summarize(sentiment_results))
 
-    # 7. Get keywords (use emoji-stripped path for cleaner noun extraction)
+    # 8. Get keywords
     top_keywords = extract_keywords(cleaned_texts, top_n=5)
 
-    # 8. K-Means thematic clustering
-    cluster_results: list[ClusterResult]
-    cluster_summary: ClusterSummary
-    cluster_results, cluster_summary = cluster_comments(cleaned_texts)
     cluster_summary_schema = ClusterSummarySchema(
         content_count=cluster_summary.content_count,
         technical_count=cluster_summary.technical_count,
@@ -187,7 +195,6 @@ def analyze(req: AnalyzeRequest):
         technical_pct=cluster_summary.technical_pct,
         general_pct=cluster_summary.general_pct,
         top_keywords=cluster_summary.top_keywords,
-        elbow_inertias=cluster_summary.elbow_inertias,
         silhouette=cluster_summary.silhouette,
     )
 

@@ -550,15 +550,31 @@ body {
 }
 .url-confirm-btn:hover { opacity: 0.85; }
 /* ── Model tab ────────────────────────────────────────────── */
-.silhouette-row {
+
+/* ── Filter row ───────────────────────────────────────────── */
+.filter-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 12px;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
 }
 
-.silhouette-val {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--yellow);
+.filter-btn {
+  padding: 3px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--muted);
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
+.filter-btn:hover { color: var(--text); border-color: var(--muted); }
+.filter-btn.active { color: var(--text); border-color: var(--accent); background: var(--accent-dim); }
+
+/* Keyword tags become clickable filters */
+.keyword-tag { cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+.keyword-tag:hover { border-color: var(--muted); color: var(--text); }
+.keyword-tag.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
