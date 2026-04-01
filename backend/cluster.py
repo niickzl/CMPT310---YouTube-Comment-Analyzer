@@ -18,21 +18,20 @@ import spacy
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import silhouette_score
 
 logger = logging.getLogger(__name__)
 
 # SpaCy model 
 # Run: python -m spacy download en_core_web_sm
-_nlp = None
+nlp = None
 
-def _get_nlp():
-    global _nlp
-    if _nlp is None:
+def get_nlp():
+    global nlp
+    if nlp is None:
         logger.info("Loading SpaCy model...")
-        _nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
+        nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
         logger.info("SpaCy loaded.")
-    return _nlp
+    return nlp
 
 
 # Category keyword signatures
@@ -86,13 +85,12 @@ class ClusterSummary:
     technical_pct: float
     general_pct: float
     top_keywords: dict[str, list[str]] = field(default_factory=dict)
-    silhouette: float = 0.0
 
 
 # SpaCy lemmatization
 
-def _lemmatize(texts: list[str]) -> list[str]:
-    nlp = _get_nlp()
+def lemmatize(texts: list[str]) -> list[str]:
+    nlp = get_nlp()
     lemmatized = []
     for doc in nlp.pipe(texts, batch_size=64):
         tokens = [
@@ -106,7 +104,7 @@ def _lemmatize(texts: list[str]) -> list[str]:
 
 # Label assignment
 
-def _assign_label(top_terms: list[str]) -> str:
+def assign_label(top_terms: list[str]) -> str:
     scores = {cat: 0 for cat in _CATEGORY_KEYWORDS}
     for term in top_terms:
         for cat, keywords in _CATEGORY_KEYWORDS.items():
@@ -137,7 +135,7 @@ def cluster_comments(
     effective_k = min(K, len(cleaned_texts))
 
     # 1. Lemmatize with SpaCy for better cluster separation
-    lemmatized = _lemmatize(cleaned_texts)
+    lemmatized = lemmatize(cleaned_texts)
 
     # 2. TF-IDF vectorization
     vectorizer = TfidfVectorizer(
@@ -156,13 +154,6 @@ def cluster_comments(
     raw_labels = km.labels_
     centroids  = km.cluster_centers_
 
-    # Silhouette score — measures how well-separated the clusters are (-1 to 1)
-    if effective_k > 1 and X.shape[0] > effective_k:
-        sil = round(float(silhouette_score(X, raw_labels)), 3)
-    else:
-        sil = 0.0
-    logger.info("Silhouette score (k=%d): %.3f", effective_k, sil)
-
     # PCA — reduce to 2D for scatter plot visualisation
     n_components = min(2, X.shape[0], X.shape[1])
     pca = PCA(n_components=n_components, random_state=42)
@@ -176,7 +167,7 @@ def cluster_comments(
         top_indices = centroids[cid].argsort()[::-1][:n_top_keywords]
         top_terms = [feature_names[i] for i in top_indices]
         cluster_id_to_keywords[cid] = top_terms
-        cluster_id_to_category[cid] = _assign_label(top_terms)
+        cluster_id_to_category[cid] = assign_label(top_terms)
 
     logger.info("Cluster label assignments: %s", cluster_id_to_category)
 
@@ -212,7 +203,6 @@ def cluster_comments(
         technical_pct=round(counts["Technical"] / total * 100, 1),
         general_pct=round(counts["General"] / total * 100, 1),
         top_keywords=top_keywords_by_category,
-        silhouette=sil,
     )
 
     return results, summary

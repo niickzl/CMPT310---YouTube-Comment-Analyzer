@@ -148,26 +148,6 @@ body {
 .sentiment-card.neutral  .s-val { color: var(--yellow); }
 .sentiment-card.negative .s-val { color: var(--accent); }
 
-/* Bar */
-.sentiment-bar-wrap {
-  margin-bottom: 4px;
-}
-
-.bar-track {
-  height: 4px;
-  background: var(--border);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--green), #69f0ae);
-  border-radius: 4px;
-  width: 0%;
-  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
 /* Divider */
 .divider {
   height: 1px;

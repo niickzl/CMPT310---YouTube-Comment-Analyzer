@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       renderSentiment(data.sentiment_summary);
       renderKeywords(data.keywords || []);
-      renderElbow(data.cluster_summary);
+      renderChart(data.cluster_summary);
 
       allComments = data.comments;
       currentPage = 0;
@@ -235,7 +235,7 @@ async function generatePDF() {
 // Render cluster charts
 let _scatterChart = null;
 
-function renderElbow(cluster) {
+function renderChart(cluster) {
   if (!cluster) return;
   const emptyMsg = document.getElementById('modelEmpty');
   if (emptyMsg) emptyMsg.style.display = 'none';
@@ -325,12 +325,6 @@ function renderSentiment(summary) {
   document.getElementById('posVal').textContent = `${summary.positive_pct}%`;
   document.getElementById('neuVal').textContent = `${summary.neutral_pct}%`;
   document.getElementById('negVal').textContent = `${summary.negative_pct}%`;
-
-  const bar = document.getElementById('sentimentBar');
-  bar.style.width = '0%';
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    bar.style.width = `${summary.positive_pct}%`;
-  }));
 }
 
 function renderKeywords(keywords) {

@@ -98,7 +98,6 @@ class ClusterSummarySchema(BaseModel):
     technical_pct: float
     general_pct: float
     top_keywords: dict[str, list[str]]
-    silhouette: float
 
 
 class AnalyzeResponse(BaseModel):
@@ -193,13 +192,12 @@ def analyze(req: AnalyzeRequest):
         technical_pct=cluster_summary.technical_pct,
         general_pct=cluster_summary.general_pct,
         top_keywords=cluster_summary.top_keywords,
-        silhouette=cluster_summary.silhouette,
     )
 
     logger.info(
-        "video=%s comments=%d positive=%.1f%% negative=%.1f%% neutral=%.1f%% silhouette=%.3f",
+        "video=%s comments=%d positive=%.1f%% negative=%.1f%% neutral=%.1f%%",
         video_id, len(comments), summary.positive_pct, summary.negative_pct,
-        summary.neutral_pct, cluster_summary.silhouette,
+        summary.neutral_pct,
     )
 
     return AnalyzeResponse(
