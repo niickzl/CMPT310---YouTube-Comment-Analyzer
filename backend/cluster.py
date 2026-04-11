@@ -39,28 +39,24 @@ def get_nlp():
 # K-Means finds the clusters unsupervised; we then match each cluster
 # centroid's top terms against these sets to assign a human-readable label.
 
-_CATEGORY_KEYWORDS = {
+CATEGORY_KEYWORDS = {
     "Content": {
-        "topic", "explain", "information", "fact", "point", "argument",
-        "concept", "idea", "story", "narrative", "research", "detail",
-        "example", "accurate", "wrong", "mislead", "miss", "teach",
-        "learn", "knowledge", "subject", "cover", "mention", "forget",
-        "section", "part", "video", "content", "tutorial", "guide",
+        # Subject matter, information, structure
+        "topic", "information", "fact", "argument", "concept", "idea",
+        "story", "narrative", "research", "detail", "example", "knowledge",
+        "subject", "section", "video", "content", "tutorial", "guide",
+        "explanation", "lesson", "point", "theory", "source", "mistake",
+        "question", "answer", "chapter", "claim", "data", "reference",
     },
     "Technical": {
-        "audio", "video", "sound", "quality", "camera", "edit", "cut",
-        "transition", "music", "background", "noise", "subtitle", "caption",
-        "resolution", "blur", "lag", "buffer", "stream", "mic", "volume",
-        "lighting", "thumbnail", "title", "description", "upload", "render",
-        "fps", "bitrate", "encode", "production", "visual",
-    },
-    "General": {
-        "love", "hate", "great", "awesome", "bad", "good", "wow", "lol",
-        "haha", "funny", "amazing", "terrible", "like", "dislike", "share",
-        "subscribe", "comment", "notification", "bell", "fan", "follow",
-        "channel", "creator", "youtuber", "thanks", "thank", "appreciate",
-        "first", "early", "here", "watch", "again", "back", "new",
-    },
+        # Production, equipment, quality
+        "audio", "sound", "quality", "camera", "transition", "music",
+        "background", "noise", "subtitle", "caption", "resolution", "stream",
+        "mic", "volume", "lighting", "thumbnail", "title", "description",
+        "production", "fps", "bitrate", "microphone", "footage", "clip",
+        "animation", "effect", "intro", "outro", "screen", "render",
+        "encoder", "lag", "buffer", "visual",
+    }
 }
 
 K = 3  # number of clusters = number of categories
@@ -96,7 +92,10 @@ def lemmatize(texts: list[str]) -> list[str]:
         tokens = [
             token.lemma_.lower()
             for token in doc
-            if not token.is_stop and not token.is_punct and token.is_alpha
+            if token.pos_ in ("NOUN", "PROPN")
+            and not token.is_stop
+            and not token.is_punct
+            and token.is_alpha
         ]
         lemmatized.append(" ".join(tokens) if tokens else " ")
     return lemmatized
@@ -105,9 +104,9 @@ def lemmatize(texts: list[str]) -> list[str]:
 # Label assignment
 
 def assign_label(top_terms: list[str]) -> str:
-    scores = {cat: 0 for cat in _CATEGORY_KEYWORDS}
+    scores = {cat: 0 for cat in CATEGORY_KEYWORDS}
     for term in top_terms:
-        for cat, keywords in _CATEGORY_KEYWORDS.items():
+        for cat, keywords in CATEGORY_KEYWORDS.items():
             if term in keywords:
                 scores[cat] += 1
 

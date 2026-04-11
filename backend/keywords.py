@@ -11,15 +11,15 @@ import spacy
 
 logger = logging.getLogger(__name__)
 
-_nlp = None
+nlp = None
 
 
-def _get_nlp():
-    global _nlp
-    if _nlp is None:
+def getnlp():
+    global nlp
+    if nlp is None:
         logger.info("Loading spaCy model...")
-        _nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
-    return _nlp
+        nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
+    return nlp
 
 
 def extract_keywords(
@@ -29,7 +29,7 @@ def extract_keywords(
     if not texts:
         return []
 
-    nlp = _get_nlp()
+    nlp = getnlp()
     counter: Counter = Counter()
 
     for doc in nlp.pipe(texts, batch_size=50):

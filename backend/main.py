@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from model import SentimentResult, get_or_load, get_sarcasm_classifier, predict, summarize
+from model import SentimentResult, get_roberta, get_helinivan, predict, summarize
 from cluster import ClusterResult, ClusterSummary, cluster_comments
 from keywords import extract_keywords
 from preprocess import sentiment_batch, clustering_batch
@@ -42,8 +42,8 @@ app.add_middleware(
 @app.on_event("startup")
 def load_model():
     logger.info("Loading models...")
-    get_or_load()           # twitter-roberta-large
-    get_sarcasm_classifier()
+    get_roberta()           # twitter-roberta-large
+    get_helinivan()
     logger.info("All models ready.")
 
 

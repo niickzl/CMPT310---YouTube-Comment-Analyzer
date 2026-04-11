@@ -25,7 +25,7 @@ sarcasm_classifier = None
 
 # Model loaders
 
-def get_or_load():
+def get_roberta():
     global classifier
     if classifier is None:
         logger.info("Loading twitter-roberta-base sentiment model...")
@@ -39,7 +39,7 @@ def get_or_load():
     return classifier
 
 
-def get_sarcasm_classifier():
+def get_helinivan():
     global sarcasm_classifier
     if sarcasm_classifier is None:
         logger.info("Loading sarcasm classifier...")
@@ -71,10 +71,8 @@ def predict(texts: list[str], classifier=None) -> list[SentimentResult]:
     if not texts:
         return []
 
-    if classifier is None:
-        classifier = get_or_load()
-
-    sarcasm_clf = get_sarcasm_classifier()
+    classifier = get_roberta()
+    sarcasm_clf = get_helinivan()
 
     sentiment_raw = classifier(texts, batch_size=16, truncation=True)
     sarcasm_raw   = sarcasm_clf(texts, batch_size=16, truncation=True)
