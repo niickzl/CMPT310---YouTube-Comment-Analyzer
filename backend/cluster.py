@@ -83,7 +83,7 @@ class ClusterSummary:
     top_keywords: dict[str, list[str]] = field(default_factory=dict)
 
 
-# SpaCy lemmatization
+# POS Tagging & SpaCy lemmatization
 
 def lemmatize(texts: list[str]) -> list[str]:
     nlp = get_nlp()

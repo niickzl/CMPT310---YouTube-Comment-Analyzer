@@ -5,7 +5,8 @@ let allComments = [];
 let currentPage = 0;
 let lastResult = null;
 let currentUrl = null;
-let activeFilter = 'all'; // "all" | "Content" | "Technical" | "General" | keyword string
+let activeSentiment = 'all'; // "all" | "positive" | "neutral" | "negative"
+let activeFilter    = 'all'; // "all" | "Content" | "Technical" | "General" | keyword string
 
 document.addEventListener('DOMContentLoaded', () => {
   const titleEl    = document.getElementById('videoTitle');
@@ -115,12 +116,19 @@ document.addEventListener('DOMContentLoaded', () => {
     exportBtn.textContent = "Export";
   });
 
-  // Filter buttons
+  // Sentiment filter buttons
+  document.getElementById('sentimentRow').addEventListener('click', (e) => {
+    const btn = e.target.closest('.sent-btn');
+    if (!btn) return;
+    setSentimentFilter(btn.dataset.sentiment);
+  });
+  // Category filter buttons
   document.getElementById('filterRow').addEventListener('click', (e) => {
     const btn = e.target.closest('.filter-btn');
     if (!btn) return;
     setFilter(btn.dataset.filter);
   });
+  
   document.getElementById('prevBtn').onclick = () => {
     if (currentPage > 0) { renderPage(--currentPage); }
   };
@@ -292,29 +300,51 @@ function renderChart(cluster) {
   });
 }
 
-// Filter helpers 
+// Filter helpers
 function filteredComments() {
-  if (activeFilter === 'all') return allComments;
-  const cats = ['Content', 'Technical', 'General'];
-  if (cats.includes(activeFilter)) {
-    return allComments.filter(c => c.category === activeFilter);
+  let results = allComments;
+
+    // Sentiment filter
+  if (activeSentiment !== 'all') {
+    results = results.filter(c => c.sentiment === activeSentiment);
   }
-  // keyword filter — match against comment text (case-insensitive)
-  return allComments.filter(c => c.text.toLowerCase().includes(activeFilter.toLowerCase()));
+
+  // Category / keyword filter
+  if (activeFilter !== 'all') {
+    const cats = ['Content', 'Technical', 'General'];
+    if (cats.includes(activeFilter)) {
+      results = results.filter(c => c.category === activeFilter);
+    } else {
+      results = results.filter(c => c.text.toLowerCase().includes(activeFilter.toLowerCase()));
+    }
+  }
+
+  return results;
 }
 
 function setFilter(filter) {
   activeFilter = filter;
   currentPage  = 0;
 
-  // Update category filter button states
-  document.querySelectorAll('.filter-btn').forEach(b => {
+  // Update category filter button states (exclude sent-btn to avoid conflicts)
+  document.querySelectorAll('#filterRow .filter-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.filter === filter);
   });
 
   // Update keyword tag states
   document.querySelectorAll('.keyword-tag').forEach(t => {
     t.classList.toggle('active', t.dataset.keyword === filter);
+  });
+
+  renderPage(0);
+}
+
+function setSentimentFilter(sentiment) {
+  activeSentiment = sentiment;
+  currentPage     = 0;
+
+  document.querySelectorAll('.sent-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.sentiment === sentiment);
   });
 
   renderPage(0);

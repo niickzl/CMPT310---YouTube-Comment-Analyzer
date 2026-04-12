@@ -554,6 +554,11 @@ body {
 .filter-btn:hover { color: var(--text); border-color: var(--muted); }
 .filter-btn.active { color: var(--text); border-color: var(--accent); background: var(--accent-dim); }
 
+/* Sentiment filter button active states */
+.filter-btn.positive-sent.active { color: var(--green);  border-color: var(--green);  background: rgba(0,230,118,0.12); }
+.filter-btn.neutral-sent.active  { color: var(--yellow); border-color: var(--yellow); background: rgba(255,215,64,0.12); }
+.filter-btn.negative-sent.active { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+
 /* Keyword tags become clickable filters */
 .keyword-tag { cursor: pointer; transition: border-color 0.15s, color 0.15s; }
 .keyword-tag:hover { border-color: var(--muted); color: var(--text); }
