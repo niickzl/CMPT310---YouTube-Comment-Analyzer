@@ -133,10 +133,10 @@ def cluster_comments(
     # Need at least K comments to form K clusters
     effective_k = min(K, len(cleaned_texts))
 
-    # 1. Lemmatize with SpaCy for better cluster separation
+    # POS & Lemmatize
     lemmatized = lemmatize(cleaned_texts)
 
-    # 2. TF-IDF vectorization
+    # TF-IDF vectorization
     vectorizer = TfidfVectorizer(
         ngram_range=(1, 2),
         max_features=5_000,
@@ -147,18 +147,18 @@ def cluster_comments(
     X = vectorizer.fit_transform(lemmatized)
     feature_names = vectorizer.get_feature_names_out()
 
-    # 3. K-Means clustering with chosen K
+    # K-Means clustering with chosen K
     km = KMeans(n_clusters=effective_k, random_state=42, n_init=10)
     km.fit(X)
     raw_labels = km.labels_
     centroids  = km.cluster_centers_
 
-    # PCA — reduce to 2D for scatter plot visualisation
+    # PCA 
     n_components = min(2, X.shape[0], X.shape[1])
     pca = PCA(n_components=n_components, random_state=42)
     coords = pca.fit_transform(X.toarray())  # shape: (n_comments, 2)
 
-    # 5. Extract top terms per cluster centroid and assign category labels
+    # Extract top terms per cluster centroid and assign category labels
     cluster_id_to_category: dict[int, str] = {}
     cluster_id_to_keywords: dict[int, list[str]] = {}
 
@@ -170,7 +170,7 @@ def cluster_comments(
 
     logger.info("Cluster label assignments: %s", cluster_id_to_category)
 
-    # 6. Build per-comment results
+    # Build per-comment results
     results = [
         ClusterResult(
             category=cluster_id_to_category[int(label)],
@@ -181,7 +181,7 @@ def cluster_comments(
         for i, label in enumerate(raw_labels)
     ]
 
-    # 7. Aggregate summary
+    # Summary
     total = len(results)
     counts = {"Content": 0, "Technical": 0, "General": 0}
     for r in results:

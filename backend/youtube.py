@@ -16,15 +16,15 @@ logger = logging.getLogger(__name__)
 
 
 class VideoNotFoundError(Exception):
-    """Raised when the given video ID does not exist on YouTube."""
+    """Video ID does not exist on YouTube."""
 
 
 class CommentsDisabledError(Exception):
-    """Raised when comments are disabled for the given video."""
+    """Comments are disabled for the given video."""
 
 
 class QuotaExceededError(Exception):
-    """Raised when the YouTube Data API quota has been exceeded."""
+    """YouTube Data API quota has been exceeded."""
 
 
 def extract_video_id(url: str) -> str:

@@ -42,7 +42,7 @@ app.add_middleware(
 @app.on_event("startup")
 def load_model():
     logger.info("Loading models...")
-    get_roberta()           # twitter-roberta-large
+    get_roberta()           # twitter-roberta
     get_helinivan()
     logger.info("All models ready.")
 
@@ -125,13 +125,13 @@ def analyze(req: AnalyzeRequest):
             detail="YOUTUBE_API_KEY is not set in the environment.",
         )
 
-    # 1. Extract video ID from URL
+    # Extract video ID from URL
     try:
         video_id = extract_video_id(req.url)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # 2. Fetch raw comments from YouTube Data API
+    # Fetch raw comments 
     try:
         raw_comments = fetch_comments(
             video_id=video_id,
@@ -145,20 +145,20 @@ def analyze(req: AnalyzeRequest):
     except QuotaExceededError as e:
         raise HTTPException(status_code=429, detail=str(e))
 
-    # 3. Two preprocessing paths — sentiment keeps emojis/casing, clustering strips them
+    # Two preprocessing paths
     raw_texts       = [c["text"] for c in raw_comments]
     sentiment_texts = sentiment_batch(raw_texts)   # emojis kept, slang normalized
     cleaned_texts   = clustering_batch(raw_texts)  # emojis stripped, slang normalized
 
-    # 4. Run RoBERTa-large sentiment inference + sarcasm correction
+    # Run RoBERTa + sarcasm correction
     sentiment_results: list[SentimentResult] = predict(sentiment_texts)
 
-    # 5. K-Means thematic clustering (done before assembly so coords are available)
+    # K-Means
     cluster_results: list[ClusterResult]
     cluster_summary: ClusterSummary
     cluster_results, cluster_summary = cluster_comments(cleaned_texts)
 
-    # 6. Assemble per-comment results
+    # Assemble per-comment results
     comments = [
         CommentResult(
             author=raw["author"],
@@ -178,10 +178,10 @@ def analyze(req: AnalyzeRequest):
         )
     ]
 
-    # 7. Aggregate sentiment summary
+    # Summary
     summary = SentimentSummary(**summarize(sentiment_results))
 
-    # 8. Get keywords
+    # Get keywords
     top_keywords = extract_keywords(cleaned_texts, top_n=5)
 
     cluster_summary_schema = ClusterSummarySchema(
