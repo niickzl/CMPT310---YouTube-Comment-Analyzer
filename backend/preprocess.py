@@ -1,19 +1,6 @@
-"""Text preprocessing utilities for YouTube comment analysis.
-
-Two separate cleaning paths:
-  - clean_for_sentiment()  — keeps emojis and casing, RoBERTa reads them as signal
-  - clean_for_clustering() — strips emojis, lowercases, cleaner for TF-IDF / K-Means
-
-Slang normalization runs on both paths so models receive semantically
-clear text instead of internet shorthand they may misread.
-"""
-
-import logging
 import re
 
-logger = logging.getLogger(__name__)
-
-# Regex patterns
+# (Consulted LLM)
 
 URL_PATTERN = re.compile(r"https?://\S+|www\.\S+")
 EMOJI_PATTERN = re.compile(
@@ -74,7 +61,7 @@ SLANG_MAP = {
     "not it":                       "this is wrong",
     "fell off":                     "declined in quality",
     "ain't it":                     "this is wrong",
-    # Neutral / contextual
+    # Neutral
     "ar":                           "very",
     "fr":                           "seriously",
     "deadass":                      "seriously",
@@ -91,6 +78,8 @@ SLANG_MAP = {
     "omg":                          "oh my god",
 
 }
+
+# (consulted LLM)
 
 SLANG_PATTERN = re.compile(
     r"\b(" + "|".join(
@@ -137,8 +126,3 @@ def sentiment_batch(comments: list[str]) -> list[str]:
 
 def clustering_batch(comments: list[str]) -> list[str]:
     return [clean_for_clustering(c) for c in comments] if comments else []
-
-
-# Backwards compatibility
-def clean_batch(comments: list[str]) -> list[str]:
-    return clustering_batch(comments)

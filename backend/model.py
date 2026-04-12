@@ -1,71 +1,42 @@
-"""Sentiment model for YouTube comment analysis.
-
-Uses cardiffnlp/twitter-roberta-base-sentiment-latest (trained on tweets)
-— strong domain match for YouTube comments: short, informal, emoji-heavy.
-
-Sarcasm correction via helinivan/english-sarcasm-detector flips the label
-when high-confidence sarcasm (>= 0.80) is detected.
-
-Pipeline:
-    cleaned text → RoBERTa tokenizer → transformer
-    → sarcasm check → flipped label if sarcastic → SentimentResult
-"""
-
-import logging
 from dataclasses import dataclass
 
 import numpy as np
 from transformers import pipeline as hf_pipeline
 
-logger = logging.getLogger(__name__)
-
 classifier = None
 sarcasm_classifier = None
-
-
-# Model loaders
 
 def get_roberta():
     global classifier
     if classifier is None:
-        logger.info("Loading twitter-roberta-base sentiment model...")
         classifier = hf_pipeline(
             "text-classification",
             model="cardiffnlp/twitter-roberta-base-sentiment-latest",
             truncation=True,
             max_length=512,
         )
-        logger.info("RoBERTa base sentiment model loaded.")
     return classifier
 
 
 def get_helinivan():
     global sarcasm_classifier
     if sarcasm_classifier is None:
-        logger.info("Loading sarcasm classifier...")
         sarcasm_classifier = hf_pipeline(
             "text-classification",
             model="helinivan/english-sarcasm-detector",
             truncation=True,
             max_length=512,
         )
-        logger.info("Sarcasm classifier loaded.")
     return sarcasm_classifier
-
-
-# Data class
 
 @dataclass
 class SentimentResult:
-    label: str          # "positive" | "neutral" | "negative"
-    raw_label: str      # "positive" | "neutral" | "negative" (RoBERTa output)
-    score: float        # confidence 0.0 - 1.0
+    label: str
+    raw_label: str # RoBERTa output
+    score: float
     is_positive: bool
     is_neutral: bool
     is_sarcastic: bool
-
-
-# Inference
 
 def predict(texts: list[str], classifier=None) -> list[SentimentResult]:
     if not texts:
@@ -106,11 +77,7 @@ def predict(texts: list[str], classifier=None) -> list[SentimentResult]:
 
     return results
 
-
-# Aggregation
-
 def summarize(results: list[SentimentResult]) -> dict:
-    """Aggregate SentimentResults into dashboard-ready stats."""
     if not results:
         return {
             "positive_count": 0,

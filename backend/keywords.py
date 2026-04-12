@@ -1,15 +1,6 @@
-"""Gets Keywords with spacy.
-
-Takes the most frequently mentioned nouns and proper nouns,
-filtering out stop words and short tokens.
-"""
-
-import logging
 from collections import Counter
 
 import spacy
-
-logger = logging.getLogger(__name__)
 
 nlp = None
 
@@ -17,7 +8,6 @@ nlp = None
 def getnlp():
     global nlp
     if nlp is None:
-        logger.info("Loading spaCy model...")
         nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
     return nlp
 

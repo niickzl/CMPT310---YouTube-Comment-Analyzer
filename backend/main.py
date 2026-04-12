@@ -1,11 +1,3 @@
-"""FastAPI backend for YT Comment Analyzer.
-
-Exposes:
-    GET  /health   — liveness check
-    POST /analyze  — fetch, preprocess, and sentiment-score YouTube comments
-"""
-
-import logging
 import os
 
 from dotenv import load_dotenv
@@ -19,16 +11,12 @@ from keywords import extract_keywords
 from preprocess import sentiment_batch, clustering_batch
 from youtube import (
     CommentsDisabledError,
-    QuotaExceededError,
     VideoNotFoundError,
     extract_video_id,
     fetch_comments,
 )
 
 load_dotenv()
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = FastAPI(title="YT Comment Analyzer API")
 
@@ -41,10 +29,10 @@ app.add_middleware(
 
 @app.on_event("startup")
 def load_model():
-    logger.info("Loading models...")
+    print("Loading models.")
     get_roberta()           # twitter-roberta
     get_helinivan()
-    logger.info("All models ready.")
+    print("All models ready.")
 
 
 # Schemas
@@ -62,11 +50,8 @@ class CommentItem(BaseModel):
     published_at: str
 
 class CommentResult(BaseModel):
-    author: str
     text: str            # original raw text shown in UI
     cleaned_text: str    # preprocessed text fed to model
-    likes: int
-    published_at: str
     sentiment: str       # "positive" | "neutral" | "negative"
     confidence: float    # 0.0 – 1.0
     is_sarcastic: bool
@@ -142,8 +127,6 @@ def analyze(req: AnalyzeRequest):
         raise HTTPException(status_code=404, detail=str(e))
     except CommentsDisabledError as e:
         raise HTTPException(status_code=403, detail=str(e))
-    except QuotaExceededError as e:
-        raise HTTPException(status_code=429, detail=str(e))
 
     # Two preprocessing paths
     raw_texts       = [c["text"] for c in raw_comments]
@@ -161,11 +144,8 @@ def analyze(req: AnalyzeRequest):
     # Assemble per-comment results
     comments = [
         CommentResult(
-            author=raw["author"],
             text=raw["text"],
             cleaned_text=s_text,
-            likes=raw["likes"],
-            published_at=raw["published_at"],
             sentiment=result.label,
             confidence=result.score,
             is_sarcastic=result.is_sarcastic,
@@ -194,11 +174,7 @@ def analyze(req: AnalyzeRequest):
         top_keywords=cluster_summary.top_keywords,
     )
 
-    logger.info(
-        "video=%s comments=%d positive=%.1f%% negative=%.1f%% neutral=%.1f%%",
-        video_id, len(comments), summary.positive_pct, summary.negative_pct,
-        summary.neutral_pct,
-    )
+    print("Done.")
 
     return AnalyzeResponse(
         video_id=video_id,

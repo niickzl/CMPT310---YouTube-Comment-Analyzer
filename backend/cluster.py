@@ -1,43 +1,18 @@
-"""K-Means thematic clustering for YouTube comments.
-
-Groups comments into three semantic categories:
-    - Content   — feedback about the video's subject matter, story, or information
-    - Technical — feedback about audio, video quality, editing, or production
-    - General   — off-topic praise, reactions, jokes, or unrelated remarks
-
-Pipeline:
-    cleaned texts → SpaCy lemmatization → TF-IDF vectors → K-Means (k=3)
-    → per-cluster keyword analysis → category label assignment
-"""
-
-import logging
 from dataclasses import dataclass, field
 
-import numpy as np
 import spacy
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-logger = logging.getLogger(__name__)
-
 # SpaCy model 
-# Run: python -m spacy download en_core_web_sm
 nlp = None
 
 def get_nlp():
     global nlp
     if nlp is None:
-        logger.info("Loading SpaCy model...")
         nlp = spacy.load("en_core_web_sm", disable=["parser", "ner"])
-        logger.info("SpaCy loaded.")
     return nlp
-
-
-# Category keyword signatures
-# These keyword sets guide label assignment after clustering.
-# K-Means finds the clusters unsupervised; we then match each cluster
-# centroid's top terms against these sets to assign a human-readable label.
 
 CATEGORY_KEYWORDS = {
     "Content": {
@@ -59,10 +34,8 @@ CATEGORY_KEYWORDS = {
     }
 }
 
-K = 3  # number of clusters = number of categories
+K = 3 
 
-
-# Data classes
 
 @dataclass
 class ClusterResult:
@@ -70,7 +43,6 @@ class ClusterResult:
     cluster_id: int     # raw K-Means cluster index (0, 1, 2)
     x: float = 0.0     # PCA dimension 1 (for scatter plot)
     y: float = 0.0     # PCA dimension 2 (for scatter plot)
-
 
 @dataclass
 class ClusterSummary:
@@ -84,7 +56,6 @@ class ClusterSummary:
 
 
 # POS Tagging & SpaCy lemmatization
-
 def lemmatize(texts: list[str]) -> list[str]:
     nlp = get_nlp()
     lemmatized = []
@@ -102,7 +73,6 @@ def lemmatize(texts: list[str]) -> list[str]:
 
 
 # Label assignment
-
 def assign_label(top_terms: list[str]) -> str:
     scores = {cat: 0 for cat in CATEGORY_KEYWORDS}
     for term in top_terms:
@@ -110,15 +80,16 @@ def assign_label(top_terms: list[str]) -> str:
             if term in keywords:
                 scores[cat] += 1
 
-    best = max(scores, key=lambda c: scores[c])
+    best = max(scores, key=scores.get)
     # Fall back to General if no keywords matched at all
     if scores[best] == 0:
         return "General"
+    
     return best
 
 
-# Main clustering function
-
+# Main clustering function 
+# (Consulted LLM to use TF-IDF, PCA, and to ensure the robustness of the function)
 def cluster_comments(
     cleaned_texts: list[str],
     n_top_keywords: int = 10,
@@ -159,6 +130,7 @@ def cluster_comments(
     coords = pca.fit_transform(X.toarray())  # shape: (n_comments, 2)
 
     # Extract top terms per cluster centroid and assign category labels
+    # The following lines of code (till the end) are written with consultation of LLM
     cluster_id_to_category: dict[int, str] = {}
     cluster_id_to_keywords: dict[int, list[str]] = {}
 
@@ -167,8 +139,6 @@ def cluster_comments(
         top_terms = [feature_names[i] for i in top_indices]
         cluster_id_to_keywords[cid] = top_terms
         cluster_id_to_category[cid] = assign_label(top_terms)
-
-    logger.info("Cluster label assignments: %s", cluster_id_to_category)
 
     # Build per-comment results
     results = [
