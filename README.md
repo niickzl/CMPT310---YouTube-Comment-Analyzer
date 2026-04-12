@@ -31,7 +31,7 @@ source .venv/bin/activate   # Mac/Linux
 ### 2. Install Dependencies
 
 ```bash
-pip install -r backend/requirement.txt
+pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```
 
